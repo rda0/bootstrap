@@ -1,0 +1,10 @@
+PermitRootLogin without-password
+PasswordAuthentication no
+AuthorizedKeysFile  .ssh/authorized_keys
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_* EDITOR
+Subsystem sftp internal-sftp
+AllowUsers root

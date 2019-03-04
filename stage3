@@ -1,0 +1,9 @@
+#!/bin/sh
+
+mkdir "${MOUNT_TRARGET}/root/.ssh"
+chmod 700 "${MOUNT_TRARGET}/root/.ssh"
+\cp /root/.ssh/authorized_keys "${MOUNT_TRARGET}/root/.ssh/"
+chmod 600 "${MOUNT_TRARGET}/root/.ssh/"
+
+\cp "${CONFIG_PATH}/sshd_config" "${MOUNT_TRARGET}/etc/ssh/sshd_config"
+chmod 644 "${MOUNT_TRARGET}/etc/ssh/sshd_config"

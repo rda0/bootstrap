@@ -1,0 +1,161 @@
+#!/bin/bash
+
+export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_PRIORITY=critical
+
+if [ "${DIST}" == "debian" ]; then
+cat > /etc/apt/sources.list << EOF
+deb http://debian.ethz.ch/debian ${RELEASE} main contrib non-free
+#deb-src http://debian.ethz.ch/debian ${RELEASE} main contrib non-free
+deb http://debian.ethz.ch/debian-security ${RELEASE}/updates main contrib non-free
+#deb-src http://debian.ethz.ch/debian-security ${RELEASE}/updates main contrib non-free
+deb http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
+#deb-src http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
+EOF
+else
+cat > /etc/apt/sources.list << EOF
+deb http://ubuntu.ethz.ch/ubuntu ${RELEASE} main restricted universe multiverse
+#deb-src http://ubuntu.ethz.ch/ubuntu ${RELEASE} main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu ${RELEASE}-security main restricted universe multiverse
+#deb-src http://security.ubuntu.com/ubuntu ${RELEASE}-security main restricted universe multiverse
+EOF
+fi
+
+apt-get update
+apt-get upgrade -y
+
+apt-get install debconf-utils -y
+
+echo 'locales locales/default_environment_locale select en_US.UTF-8' | debconf-set-selections
+echo 'locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8' | debconf-set-selections
+apt-get install locales -y
+echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+locale-gen
+update-locale LANG=en_US.UTF-8
+
+export LANG=en_US.UTF-8
+
+if [ "${DIST}" == "debian" ]; then
+    apt-get install linux-image-amd64 -y
+else
+    apt-get install linux-image-generic -y
+fi
+
+if [ -z "${LV_BOOT_SIZE}" ]; then
+  apt-get install extlinux -y
+
+  extlinux --install /
+
+  cat > /syslinux.cfg << EOF
+PROMPT 0
+TIMEOUT 0
+DEFAULT linux
+
+LABEL linux
+    LINUX vmlinuz
+    APPEND root=/dev/sda rw elevator=noop net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200
+    INITRD initrd.img
+EOF
+
+  cat > /etc/fstab << EOF
+# <file system> <mount point> <type> <options> <dump> <pass>
+/dev/sda  /     ${FS_ROOT} errors=remount-ro 0 1
+EOF
+else
+  apt-get install grub-pc -y
+
+  cat > /etc/default/grub << 'EOF'
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=0
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT=""
+GRUB_CMDLINE_LINUX="elevator=noop net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200"
+GRUB_TERMINAL="serial console"
+GRUB_TERMINAL=serial
+GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"
+EOF
+
+  cat > /etc/fstab << EOF
+# <file system> <mount point> <type> <options> <dump> <pass>
+/dev/sdb  /     ${FS_ROOT} errors=remount-ro 0 1
+/dev/sda1 /boot ext2 defaults          0 2
+EOF
+
+  grub-install ${MAPPER_BOOT}
+  update-grub
+  sed -i "s/${MAPPER_ROOT//\//\\\/}/\/dev\/sdb/g" /boot/grub/grub.cfg
+fi
+
+if [ "${RELEASE}" != "jessie" ]; then
+    cat > /etc/systemd/network/${IF}.network << EOF
+[Match]
+Name=${IF}
+
+[Network]
+DHCP=yes
+
+[DHCP]
+UseDomains=true
+EOF
+    >/etc/network/interfaces
+    systemctl enable systemd-resolved.service
+    systemctl enable systemd-networkd.service
+    systemctl enable systemd-networkd-wait-online.service
+else
+    cat > /etc/network/interfaces << EOF
+# interfaces(5) file used by ifup(8) and ifdown(8)
+# Include files from /etc/network/interfaces.d:
+source-directory /etc/network/interfaces.d
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug ${IF}
+iface ${IF} inet dhcp
+EOF
+fi
+
+echo "${VM}" > /etc/hostname
+
+apt-get purge tzdata -y
+echo PURGE | debconf-communicate tzdata
+echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections
+echo 'tzdata tzdata/Zones/Europe select Zurich' | debconf-set-selections
+apt-get install tzdata -y
+
+if [ ! -z "${PACKAGE_REQUIRED}" ]; then
+    echo "INSTALLING PACKAGE_REQUIRED ..."
+    apt-get install --install-recommends ${PACKAGE_REQUIRED} -y
+fi
+
+if [ ! -z "${PACKAGE_IMPORTANT}" ]; then
+    echo "INSTALLING PACKAGE_IMPORTANT ..."
+    apt-get install --install-recommends ${PACKAGE_IMPORTANT} -y
+fi
+
+if [ ! -z "${PACKAGE_STANDARD}" ]; then
+    echo "INSTALLING PACKAGE_STANDARD ..."
+    apt-get install --install-recommends ${PACKAGE_STANDARD} -y
+fi
+
+if [ ! -z "${PACKAGE_INSTALL}" ]; then
+    echo "INSTALLING PACKAGE_INSTALL ..."
+    apt-get install --no-install-recommends ${PACKAGE_INSTALL} -y
+fi
+
+if [ ! -z "${PACKAGE_PURGE}" ]; then
+    echo "PURGING PACKAGE_PURGE ..."
+    apt-get purge ${PACKAGE_PURGE} -y
+fi
+
+usermod -p "${ROOT_PASSWORD_HASH}" root
+
+apt-get autoremove --purge -y
+apt-get clean
+
+if [ "${RELEASE}" != "jessie" ]; then
+    rm /etc/resolv.conf
+    ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+fi

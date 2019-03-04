@@ -1,0 +1,254 @@
+#!/bin/bash
+
+print_usage() {
+  echo -e "Usage: ${0} vm vg dist release [options]"
+  echo -e "\n    Bootstraps a bootable kvm vm to lvm filesystem."
+  echo -e "    Default bootloader: extlinux"
+  echo -e "\nOptions:\n"
+  echo "    vm"
+  echo "        Name of the vm (used for lvm naming)"
+  echo "    vg"
+  echo "        Volume group name"
+  echo "    dist"
+  echo "        Distribution name (example: \`debian\`, \`ubuntu\`)"
+  echo "    release"
+  echo "        Release name (example \`stable\`, \`stretch\`, etc)"
+  echo "    -r, --root <size>"
+  echo "        Size of root fs lv (default: \`2G\`)"
+  echo "    -b, --boot <size>"
+  echo "        Enable boot disk (and grub), size of boot disk lv (example: \`512M\`)"
+  echo "    -t, --fs-type <type>"
+  echo "        Type for root file system (default: \`ext4\`)"
+  echo "    -i, --package-install <package_list>"
+  echo "        List of extra packages to install (default: bootstrap-packages/<dist>/<release>/install)"
+  echo "    -u, --package-purge <package_list>"
+  echo "        List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)"
+  echo "    -n, --network-interface <interface_name>"
+  echo "        Network interface name (default: \`eth0\`)"
+  echo "    -h, --help"
+  echo "        Print this help message"
+}
+
+print_requirement_cdebootstrap() {
+  echo -e "error: cdebootstrap is not installed. To install run:"
+  echo -e "\n    apt install cdebootstrap ubuntu-archive-keyring\n"
+}
+
+print_requirement_part() {
+  echo -e "error: parted or kpartx is not installed. To install run:"
+  echo -e "\n    apt install parted kpartx\n"
+}
+
+if [ "$#" -lt 4 ] || [ "$#" -gt 11 ]; then
+  print_usage
+  exit 1
+fi
+
+export VM="${1}"
+shift
+export VG="${1}"
+shift
+export DIST="${1}"
+shift
+export RELEASE="${1}"
+shift
+export LV_ROOT="${VM}-root"
+export LV_BOOT="${VM}-boot"
+export DEV_ROOT="/dev/${VG}/${LV_ROOT}"
+export DEV_BOOT="/dev/${VG}/${LV_BOOT}"
+export MAPPER_ROOT="/dev/mapper/${VG}-${VM//-/--}--root"
+export MAPPER_BOOT="/dev/mapper/${VG}-${VM//-/--}--boot"
+export MAPPER_BOOT1="${MAPPER_BOOT}1"
+export MOUNT_TRARGET="/mnt/bootstrap"
+export SCRIPT_PATH="$(dirname ${0})"
+export PACKAGE_PATH="${SCRIPT_PATH}/packages"
+export CONFIG_PATH="${SCRIPT_PATH}/config"
+export DEBOOTSTRAP_EXCLUDE="--exclude=editor,debconf-2.0"
+
+LV_ROOT_SIZE="2G"
+LV_BOOT_SIZE=""
+IF="eth0"
+FS_ROOT="ext4"
+
+if [ "${RELEASE}" == "jessie" ]; then
+    FS_ROOT="ext3"
+fi
+
+if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/required" ]
+then
+    PACKAGE_REQUIRED="$(<${PACKAGE_PATH}/${DIST}/${RELEASE}/required)"
+else
+    PACKAGE_REQUIRED=""
+fi
+
+if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/important" ]
+then
+    PACKAGE_IMPORTANT="$(<${PACKAGE_PATH}/${DIST}/${RELEASE}/important)"
+else
+    PACKAGE_IMPORTANT=""
+fi
+
+if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/standard" ]
+then
+    PACKAGE_STANDARD="$(<${PACKAGE_PATH}/${DIST}/${RELEASE}/standard)"
+else
+    PACKAGE_STANDARD=""
+fi
+
+if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/install" ]
+then
+    PACKAGE_INSTALL="$(<${PACKAGE_PATH}/${DIST}/${RELEASE}/install)"
+else
+    PACKAGE_INSTALL=""
+fi
+
+if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/purge" ]
+then
+    PACKAGE_PURGE="$(<${PACKAGE_PATH}/${DIST}/${RELEASE}/purge)"
+else
+    PACKAGE_PURGE=""
+fi
+
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -h|--help)
+        print_usage
+        exit 1
+        ;;
+    -r|--root)
+        LV_ROOT_SIZE="${2}"
+        shift
+        ;;
+    -b|--boot)
+        LV_BOOT_SIZE="${2}"
+        shift
+        ;;
+    -t|--fs-type)
+        FS_ROOT="${2}"
+        shift
+        ;;
+    -p|--package-priorities)
+        PACKAGE_PRIO="${2}"
+        shift
+        ;;
+    -i|--package-install)
+        PACKAGE_INSTALL="${2}"
+        shift
+        ;;
+    -u|--package-purge)
+        PACKAGE_PURGE="${2}"
+        shift
+        ;;
+    -n|--network-interface)
+        IF="${2}"
+        shift
+        ;;
+esac
+shift # past argument or value
+done
+
+if [ "$(which cdebootstrap)" != "/usr/bin/cdebootstrap" ]; then
+  print_requirement_cdebootstrap
+  exit 1
+fi
+
+export LV_ROOT_SIZE
+export LV_BOOT_SIZE
+export FS_ROOT
+export PACKAGE_REQUIRED
+export PACKAGE_IMPORTANT
+export PACKAGE_STANDARD
+export PACKAGE_INSTALL
+export PACKAGE_PURGE
+export IF
+
+# try to load root password hash
+if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
+    . "${SCRIPT_PATH}/secrets/root_password_hash"
+fi
+
+# if the root password is undefined, set it to `toor`
+if [ -z "${ROOT_PASSWORD_HASH}" ]; then
+    ROOT_PASSWORD_HASH='$6$BiHI2LMs$B/L0VkdgRuo/ZTXCpmgA4a9rLXxqVG7R.F6/3L93kKdOPmm8C9nT5VJ/8LL7MxykhqJkGZpOHi8z47m1RAt231'
+fi
+
+export ROOT_PASSWORD_HASH
+
+if [ -e ${DEV_ROOT} ]; then
+  echo "error: ${DEV_ROOT} already exists!"
+  exit 1
+fi
+
+if [ ! -z "${LV_BOOT_SIZE}" ]; then
+  if [ -e ${DEV_BOOT} ]; then
+    echo "error: ${DEV_BOOT} already exists!"
+    exit 1
+  fi
+
+  if [ "$(which parted)" != "/sbin/parted" ]; then
+    print_requirement_part
+    exit 1
+  fi
+
+  if [ "$(which kpartx)" != "/sbin/kpartx" ]; then
+    print_requirement_part
+    exit 1
+  fi
+fi
+
+echo "name: ${VM}"
+echo "vg: ${VG}"
+echo "root lv size: $LV_ROOT_SIZE"
+[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv size: $LV_BOOT_SIZE"
+echo "root lv: ${DEV_ROOT}"
+[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
+echo
+
+read -p "Are you sure? [y/N]" -n 1 -r
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+  echo "bootstrapping to lvm..."
+
+  lvcreate -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG}
+  mkfs.${FS_ROOT} ${DEV_ROOT}
+
+  if [ ! -z "${LV_BOOT_SIZE}" ]; then
+    lvcreate -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG}
+    parted ${DEV_BOOT} mklabel msdos
+    parted ${DEV_BOOT} mkpart primary ext2 1M 100%
+    parted ${DEV_BOOT} set 1 boot on
+    kpartx -av ${DEV_BOOT}
+    mkfs.ext2 ${MAPPER_BOOT1}
+  fi
+
+  mkdir -p ${MOUNT_TRARGET}
+  mount ${DEV_ROOT} ${MOUNT_TRARGET}
+  cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" ${MOUNT_TRARGET} "http://debian.ethz.ch/${DIST}/"
+  [[ ! -z "${LV_BOOT_SIZE}" ]] && mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot"
+
+  mount --bind /dev "${MOUNT_TRARGET}/dev"
+  mount --bind /dev/pts "${MOUNT_TRARGET}/dev/pts"
+  mount -t proc proc "${MOUNT_TRARGET}/proc"
+  mount -t sysfs sysfs "${MOUNT_TRARGET}/sys"
+
+  \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TRARGET}
+  chmod +x "${MOUNT_TRARGET}/stage2"
+  LANG=C.UTF-8 chroot ${MOUNT_TRARGET} /bin/bash /stage2
+  rm "${MOUNT_TRARGET}/stage2"
+
+  . "${SCRIPT_PATH}/stage3"
+
+  rm "${MOUNT_TRARGET}/var/lib/apt/lists/*"
+  rm "${MOUNT_TRARGET}/root/.bash_history"
+
+  [[ ! -z "${LV_BOOT_SIZE}" ]] && umount "${MOUNT_TRARGET}/boot"
+  umount "${MOUNT_TRARGET}/sys"
+  umount "${MOUNT_TRARGET}/proc"
+  umount "${MOUNT_TRARGET}/dev/pts"
+  umount "${MOUNT_TRARGET}/dev"
+  umount "${MOUNT_TRARGET}"
+  [[ ! -z "${LV_BOOT_SIZE}" ]] && kpartx -d ${DEV_BOOT}
+fi
