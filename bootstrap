@@ -44,6 +44,14 @@ if [ "$#" -lt 4 ] || [ "$#" -gt 11 ]; then
   exit 1
 fi
 
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+
 export VM="${1}"
 shift
 export VG="${1}"
@@ -60,7 +68,7 @@ export MAPPER_ROOT="/dev/mapper/${VG}-${VM//-/--}--root"
 export MAPPER_BOOT="/dev/mapper/${VG}-${VM//-/--}--boot"
 export MAPPER_BOOT1="${MAPPER_BOOT}1"
 export MOUNT_TRARGET="/mnt/bootstrap"
-export SCRIPT_PATH="$(dirname ${0})"
+export SCRIPT_PATH="${DIR}"
 export PACKAGE_PATH="${SCRIPT_PATH}/packages"
 export CONFIG_PATH="${SCRIPT_PATH}/config"
 export DEBOOTSTRAP_EXCLUDE="--exclude=editor,debconf-2.0"
@@ -241,9 +249,6 @@ then
 
   . "${SCRIPT_PATH}/stage3"
 
-  rm "${MOUNT_TRARGET}/var/lib/apt/lists/*"
-  rm "${MOUNT_TRARGET}/root/.bash_history"
-
   [[ ! -z "${LV_BOOT_SIZE}" ]] && umount "${MOUNT_TRARGET}/boot"
   umount "${MOUNT_TRARGET}/sys"
   umount "${MOUNT_TRARGET}/proc"
@@ -252,3 +257,5 @@ then
   umount "${MOUNT_TRARGET}"
   [[ ! -z "${LV_BOOT_SIZE}" ]] && kpartx -d ${DEV_BOOT}
 fi
+
+exit 0
