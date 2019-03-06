@@ -25,6 +25,8 @@ print_usage() {
   echo "        List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)"
   echo "    -n, --network-interface <interface_name>"
   echo "        Network interface name (default: \`eth0\`)"
+  echo "    -y, --yes"
+  echo "        Run non-interactively and answer questions with yes"
   echo "    -h, --help"
   echo "        Print this help message"
 }
@@ -77,6 +79,8 @@ LV_ROOT_SIZE="2G"
 LV_BOOT_SIZE=""
 IF="eth0"
 FS_ROOT="ext4"
+YES="false"
+LVCREATE_OPTS="--zero y --wipesignatures y"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -124,7 +128,10 @@ key="$1"
 case $key in
     -h|--help)
         print_usage
-        exit 1
+        exit 0
+        ;;
+    -y|--yes)
+        YES="true"
         ;;
     -r|--root)
         LV_ROOT_SIZE="${2}"
@@ -161,6 +168,10 @@ done
 if [ "$(which cdebootstrap)" != "/usr/bin/cdebootstrap" ]; then
   print_requirement_cdebootstrap
   exit 1
+fi
+
+if [[ "${YES}" == "true" ]]; then
+  LVCREATE_OPTS="${LVCREATE_OPTS} --yes"
 fi
 
 export LV_ROOT_SIZE
@@ -215,16 +226,19 @@ echo "root lv: ${DEV_ROOT}"
 [[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
 echo
 
-read -p "Are you sure? [y/N]" -n 1 -r
-if [[ $REPLY =~ ^[Yy]$ ]]
+if [[ ! "${YES}" == "true" ]]; then
+  read -p "Are you sure? [y/N]" -n 1 -r
+fi
+
+if [[ "${YES}" == "true" ]] || [[ $REPLY =~ ^[Yy]$ ]]
 then
   echo "bootstrapping to lvm..."
 
-  lvcreate -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG}
+  lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG}
   mkfs.${FS_ROOT} ${DEV_ROOT}
 
   if [ ! -z "${LV_BOOT_SIZE}" ]; then
-    lvcreate -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG}
+    lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG}
     parted ${DEV_BOOT} mklabel msdos
     parted ${DEV_BOOT} mkpart primary ext2 1M 100%
     parted ${DEV_BOOT} set 1 boot on
