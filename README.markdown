@@ -60,6 +60,8 @@ Options:
         List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)
     -n, --network-interface <interface_name>
         Network interface name (default: `eth0`)
+    -y, --yes
+        Run non-interactively and answer questions with yes
     -h, --help
         Print this help message
 ```
