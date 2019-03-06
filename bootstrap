@@ -234,21 +234,21 @@ if [[ "${YES}" == "true" ]] || [[ $REPLY =~ ^[Yy]$ ]]
 then
   echo "bootstrapping to lvm..."
 
-  lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG}
-  mkfs.${FS_ROOT} ${DEV_ROOT}
+  lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG} || exit 1
+  mkfs.${FS_ROOT} ${DEV_ROOT} || exit 1
 
   if [ ! -z "${LV_BOOT_SIZE}" ]; then
-    lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG}
-    parted ${DEV_BOOT} mklabel msdos
-    parted ${DEV_BOOT} mkpart primary ext2 1M 100%
-    parted ${DEV_BOOT} set 1 boot on
-    kpartx -av ${DEV_BOOT}
-    mkfs.ext2 ${MAPPER_BOOT1}
+    lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG} || exit 1
+    parted ${DEV_BOOT} mklabel msdos || exit 1
+    parted ${DEV_BOOT} mkpart primary ext2 1M 100% || exit 1
+    parted ${DEV_BOOT} set 1 boot on || exit 1
+    kpartx -av ${DEV_BOOT} || exit 1
+    mkfs.ext2 ${MAPPER_BOOT1} || exit 1
   fi
 
   mkdir -p ${MOUNT_TRARGET}
-  mount ${DEV_ROOT} ${MOUNT_TRARGET}
-  cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" ${MOUNT_TRARGET} "http://debian.ethz.ch/${DIST}/"
+  mount ${DEV_ROOT} ${MOUNT_TRARGET} || exit 1
+  cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" ${MOUNT_TRARGET} "http://debian.ethz.ch/${DIST}/" || exit 1
   [[ ! -z "${LV_BOOT_SIZE}" ]] && mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot"
 
   mount --bind /dev "${MOUNT_TRARGET}/dev"
@@ -258,7 +258,7 @@ then
 
   \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TRARGET}
   chmod +x "${MOUNT_TRARGET}/stage2"
-  LANG=C.UTF-8 chroot ${MOUNT_TRARGET} /bin/bash /stage2
+  LANG=C.UTF-8 chroot ${MOUNT_TRARGET} /bin/bash /stage2 || exit 1
   rm "${MOUNT_TRARGET}/stage2"
 
   . "${SCRIPT_PATH}/stage3"
