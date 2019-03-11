@@ -53,7 +53,7 @@ DEFAULT linux
 
 LABEL linux
     LINUX vmlinuz
-    APPEND root=/dev/sda rw elevator=noop net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200
+    APPEND root=/dev/sda ro net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop
     INITRD initrd.img
 EOF
 
@@ -69,9 +69,8 @@ GRUB_DEFAULT=0
 GRUB_TIMEOUT=0
 GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
 GRUB_CMDLINE_LINUX_DEFAULT=""
-GRUB_CMDLINE_LINUX="elevator=noop net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200"
-GRUB_TERMINAL="serial console"
-GRUB_TERMINAL=serial
+GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop"
+GRUB_TERMINAL="serial"
 GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"
 EOF
 
