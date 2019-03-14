@@ -103,3 +103,32 @@ ROOT_PASSWORD_HASH='$6$BiHI2LMs$B/L0VkdgRuo/ZTXCpmgA4a9rLXxqVG7R.F6/3L93kKdOPmm8
 ```
 
 The example above is the default root password hash (password: `toor`) if the file is absent or the variable empty.
+
+Create package lists
+--------------------
+
+To bootstrap a system using standard packages, you can create 3 files corresponding to the apt package priorities. Run the following `aptitude` commands on a running system with the target release to generate the list of packages:
+
+```
+aptitude search --display-format "%p" '~prequired' > required
+aptitude search --display-format "%p" '~pimportant' > important
+aptitude search --display-format "%p" '~pstandard' > standard
+```
+
+Place the files in the following location:
+
+```
+packages/<dist>/<release>/
+```
+
+To install some extra packages, write a list of packages in:
+
+```
+packages/<dist>/<release>/install
+```
+
+To purge some unwanted packages, write a list of packages in:
+
+```
+packages/<dist>/<release>/purge
+```

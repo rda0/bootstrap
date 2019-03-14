@@ -1,0 +1,14 @@
+python-minimal
+python-apt
+acpi-support
+dbus
+ssh
+bash-completion
+apt-transport-https
+mlocate
+vim
+htop
+ncdu
+host
+fail2ban
+haveged
