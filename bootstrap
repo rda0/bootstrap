@@ -25,8 +25,12 @@ print_usage() {
   echo "        List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)"
   echo "    -n, --network-interface <interface_name>"
   echo "        Network interface name (default: \`eth0\`)"
+  echo "    -m, --mirror <mirror_url>"
+  echo "        Mirror to use (default: \`http://debian.ethz.ch\`)"
   echo "    -y, --yes"
   echo "        Run non-interactively and answer questions with yes"
+  echo "    -d, --debootstrap"
+  echo "        Use debootstrap instead of cdebootstrap"
   echo "    -h, --help"
   echo "        Print this help message"
 }
@@ -36,12 +40,17 @@ print_requirement_cdebootstrap() {
   echo -e "\n    apt install cdebootstrap ubuntu-archive-keyring\n"
 }
 
+print_requirement_debootstrap() {
+  echo -e "error: debootstrap is not installed. To install run:"
+  echo -e "\n    apt install debootstrap\n"
+}
+
 print_requirement_part() {
   echo -e "error: parted or kpartx is not installed. To install run:"
   echo -e "\n    apt install parted kpartx\n"
 }
 
-if [ "$#" -lt 4 ] || [ "$#" -gt 11 ]; then
+if [ "$#" -lt 4 ] || [ "$#" -gt 14 ]; then
   print_usage
   exit 1
 fi
@@ -81,6 +90,7 @@ IF="eth0"
 FS_ROOT="ext4"
 YES="false"
 LVCREATE_OPTS="--zero y --wipesignatures y"
+MIRROR="http://debian.ethz.ch"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -133,6 +143,9 @@ case $key in
     -y|--yes)
         YES="true"
         ;;
+    -d|--debootstrap)
+        DEBOOTSTRAP="true"
+        ;;
     -r|--root)
         LV_ROOT_SIZE="${2}"
         shift
@@ -161,12 +174,21 @@ case $key in
         IF="${2}"
         shift
         ;;
+    -m|--mirror)
+        MIRROR="${2}"
+        shift
+        ;;
 esac
 shift # past argument or value
 done
 
 if [ "$(which cdebootstrap)" != "/usr/bin/cdebootstrap" ]; then
   print_requirement_cdebootstrap
+  exit 1
+fi
+
+if [[ "${DEBOOTSTRAP}" == "true" ]] && [ "$(which debootstrap)" != "/usr/sbin/debootstrap" ]; then
+  print_requirement_debootstrap
   exit 1
 fi
 
@@ -248,7 +270,11 @@ then
 
   mkdir -p ${MOUNT_TRARGET}
   mount ${DEV_ROOT} ${MOUNT_TRARGET} || exit 1
-  cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" ${MOUNT_TRARGET} "http://debian.ethz.ch/${DIST}/" || exit 1
+  if [[ ! "${DEBOOTSTRAP}" == "true" ]]; then
+    cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
+  else
+    debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
+  fi
   [[ ! -z "${LV_BOOT_SIZE}" ]] && mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot"
 
   mount --bind /dev "${MOUNT_TRARGET}/dev"
