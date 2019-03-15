@@ -182,12 +182,12 @@ esac
 shift # past argument or value
 done
 
-if [ "$(which cdebootstrap)" != "/usr/bin/cdebootstrap" ]; then
+if [ "$(which cdebootstrap)" == "" ]; then
   print_requirement_cdebootstrap
   exit 1
 fi
 
-if [[ "${DEBOOTSTRAP}" == "true" ]] && [ "$(which debootstrap)" != "/usr/sbin/debootstrap" ]; then
+if [[ "${DEBOOTSTRAP}" == "true" ]] && [ "$(which debootstrap)" == "" ]; then
   print_requirement_debootstrap
   exit 1
 fi
@@ -229,12 +229,12 @@ if [ ! -z "${LV_BOOT_SIZE}" ]; then
     exit 1
   fi
 
-  if [ "$(which parted)" != "/sbin/parted" ]; then
+  if [ "$(which parted)" == "" ]; then
     print_requirement_part
     exit 1
   fi
 
-  if [ "$(which kpartx)" != "/sbin/kpartx" ]; then
+  if [ "$(which kpartx)" == "" ]; then
     print_requirement_part
     exit 1
   fi
