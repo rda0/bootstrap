@@ -19,6 +19,8 @@ print_usage() {
   echo "        Enable boot disk (and grub), size of boot disk lv (example: \`512M\`)"
   echo "    -t, --fs-type <type>"
   echo "        Type for root file system (default: \`ext4\`)"
+  echo "    -o, --fs-options <options>"
+  echo "        Options passed to \`mkfs.<fs-type>\` (default: use system defaults)"
   echo "    -i, --package-install <package_list>"
   echo "        List of extra packages to install (default: bootstrap-packages/<dist>/<release>/install)"
   echo "    -u, --package-purge <package_list>"
@@ -50,7 +52,7 @@ print_requirement_part() {
   echo -e "\n    apt install parted kpartx\n"
 }
 
-if [ "$#" -lt 4 ] || [ "$#" -gt 14 ]; then
+if [ "$#" -lt 4 ] || [ "$#" -gt 16 ]; then
   print_usage
   exit 1
 fi
@@ -88,12 +90,17 @@ LV_ROOT_SIZE="2G"
 LV_BOOT_SIZE=""
 IF="eth0"
 FS_ROOT="ext4"
+FS_OPTIONS=""
 YES="false"
 LVCREATE_OPTS="--zero y --wipesignatures y"
 MIRROR="http://debian.ethz.ch"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
+fi
+
+if [ "${RELEASE}" == "xenial" ]; then
+    FS_OPTIONS="-O has_journal,ext_attr,resize_inode,dir_index,filetype,extent,flex_bg,sparse_super,large_file,huge_file,uninit_bg,dir_nlink,extra_isize,^64bit,^metadata_csum"
 fi
 
 if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/required" ]
@@ -156,6 +163,10 @@ case $key in
         ;;
     -t|--fs-type)
         FS_ROOT="${2}"
+        shift
+        ;;
+    -o|--fs-options)
+        FS_OPTIONS="${2}"
         shift
         ;;
     -p|--package-priorities)
@@ -257,7 +268,7 @@ then
   echo "bootstrapping to lvm..."
 
   lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG} || exit 1
-  mkfs.${FS_ROOT} ${DEV_ROOT} || exit 1
+  mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
   if [ ! -z "${LV_BOOT_SIZE}" ]; then
     lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG} || exit 1
