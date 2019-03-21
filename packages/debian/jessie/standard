@@ -52,7 +52,6 @@ libkrad0
 libkrb5-3                                                                       
 libkrb5support0                                                                 
 libldap-2.4-2                                                                   
-libldap-common                                                                  
 liblockfile-bin                                                                 
 liblockfile1                                                                    
 liblwres90                                                                      

@@ -40,7 +40,6 @@ libssl1.0.0
 libstdc++6                                                                      
 libudev1                                                                        
 libusb-0.1-4                                                                    
-libxapian30v4                                                                   
 libxtables10                                                                    
 logrotate                                                                       
 man-db                                                                          

@@ -85,7 +85,6 @@ readline-common
 resolvconf                                                                      
 rsyslog                                                                         
 sudo                                                                            
-ubuntu-advantage-tools                                                          
 ubuntu-keyring                                                                  
 ubuntu-minimal                                                                  
 ucf                                                                             
