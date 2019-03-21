@@ -21,6 +21,10 @@ deb http://security.ubuntu.com/ubuntu ${RELEASE}-security main restricted univer
 EOF
 fi
 
+cat > /etc/apt/apt.conf.d/90local << EOF
+APT::Install-Recommends "false";
+EOF
+
 cat > /etc/gai.conf << EOF
 # prefer ipv4 destination address, except for loopback address
 precedence  ::1/128       50
