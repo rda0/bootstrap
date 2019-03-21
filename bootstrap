@@ -286,7 +286,9 @@ then
   else
     debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
   fi
-  [[ ! -z "${LV_BOOT_SIZE}" ]] && mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot"
+  if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+    mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot" || exit 1
+  fi
 
   mount --bind /dev "${MOUNT_TRARGET}/dev"
   #mount --bind /dev/pts "${MOUNT_TRARGET}/dev/pts"
@@ -300,14 +302,18 @@ then
 
   . "${SCRIPT_PATH}/stage3"
 
-  [[ ! -z "${LV_BOOT_SIZE}" ]] && umount "${MOUNT_TRARGET}/boot"
-  umount "${MOUNT_TRARGET}/sys"
-  umount "${MOUNT_TRARGET}/proc"
-  #umount "${MOUNT_TRARGET}/dev/pts"
-  umount "${MOUNT_TRARGET}/dev"
-  umount "${MOUNT_TRARGET}"
-  [[ ! -z "${LV_BOOT_SIZE}" ]] && kpartx -d ${DEV_BOOT}
-  rm -r "${MOUNT_TRARGET}"
+  if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+    umount "${MOUNT_TRARGET}/boot" || exit 1
+  fi
+  umount "${MOUNT_TRARGET}/sys" || exit 1
+  umount "${MOUNT_TRARGET}/proc" || exit 1
+  #umount "${MOUNT_TRARGET}/dev/pts" || exit 1
+  umount "${MOUNT_TRARGET}/dev" || exit 1
+  umount "${MOUNT_TRARGET}" || exit 1
+  if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+    kpartx -d ${DEV_BOOT} || exit 1
+  fi
+  rmdir "${MOUNT_TRARGET}"
 fi
 
 exit 0
