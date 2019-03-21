@@ -80,7 +80,7 @@ export DEV_BOOT="/dev/${VG}/${LV_BOOT}"
 export MAPPER_ROOT="/dev/mapper/${VG}-${VM//-/--}--root"
 export MAPPER_BOOT="/dev/mapper/${VG}-${VM//-/--}--boot"
 export MAPPER_BOOT1="${MAPPER_BOOT}1"
-export MOUNT_TRARGET="/mnt/bootstrap"
+export MOUNT_TRARGET="/mnt/bootstrap/${VG}-${LV_ROOT}"
 export SCRIPT_PATH="${DIR}"
 export PACKAGE_PATH="${SCRIPT_PATH}/packages"
 export CONFIG_PATH="${SCRIPT_PATH}/config"
@@ -254,7 +254,7 @@ fi
 echo "name: ${VM}"
 echo "vg: ${VG}"
 echo "root lv size: $LV_ROOT_SIZE"
-[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv size: $LV_BOOT_SIZE"
+[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv size: ${LV_BOOT_SIZE}"
 echo "root lv: ${DEV_ROOT}"
 [[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
 echo
@@ -289,7 +289,7 @@ then
   [[ ! -z "${LV_BOOT_SIZE}" ]] && mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot"
 
   mount --bind /dev "${MOUNT_TRARGET}/dev"
-  mount --bind /dev/pts "${MOUNT_TRARGET}/dev/pts"
+  #mount --bind /dev/pts "${MOUNT_TRARGET}/dev/pts"
   mount -t proc proc "${MOUNT_TRARGET}/proc"
   mount -t sysfs sysfs "${MOUNT_TRARGET}/sys"
 
@@ -303,10 +303,11 @@ then
   [[ ! -z "${LV_BOOT_SIZE}" ]] && umount "${MOUNT_TRARGET}/boot"
   umount "${MOUNT_TRARGET}/sys"
   umount "${MOUNT_TRARGET}/proc"
-  umount "${MOUNT_TRARGET}/dev/pts"
+  #umount "${MOUNT_TRARGET}/dev/pts"
   umount "${MOUNT_TRARGET}/dev"
   umount "${MOUNT_TRARGET}"
   [[ ! -z "${LV_BOOT_SIZE}" ]] && kpartx -d ${DEV_BOOT}
+  rm -r "${MOUNT_TRARGET}"
 fi
 
 exit 0
