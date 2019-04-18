@@ -2,9 +2,4 @@ python-minimal
 python-apt
 ssh
 bash-completion
-apt-transport-https
-mlocate
 vim
-htop
-ncdu
-host
