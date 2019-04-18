@@ -31,20 +31,20 @@ print_usage() {
   echo "        Mirror to use (default: \`http://debian.ethz.ch\`)"
   echo "    -y, --yes"
   echo "        Run non-interactively and answer questions with yes"
-  echo "    -d, --debootstrap"
-  echo "        Use debootstrap instead of cdebootstrap"
+  echo "    -c, --cdebootstrap"
+  echo "        Use cdebootstrap instead of debootstrap"
   echo "    -h, --help"
   echo "        Print this help message"
-}
-
-print_requirement_cdebootstrap() {
-  echo -e "error: cdebootstrap is not installed. To install run:"
-  echo -e "\n    apt install cdebootstrap ubuntu-archive-keyring\n"
 }
 
 print_requirement_debootstrap() {
   echo -e "error: debootstrap is not installed. To install run:"
   echo -e "\n    apt install debootstrap\n"
+}
+
+print_requirement_cdebootstrap() {
+  echo -e "error: cdebootstrap is not installed. To install run:"
+  echo -e "\n    apt install cdebootstrap ubuntu-archive-keyring\n"
 }
 
 print_requirement_part() {
@@ -150,8 +150,8 @@ case $key in
     -y|--yes)
         YES="true"
         ;;
-    -d|--debootstrap)
-        DEBOOTSTRAP="true"
+    -c|--cdebootstrap)
+        CDEBOOTSTRAP="true"
         ;;
     -r|--root)
         LV_ROOT_SIZE="${2}"
@@ -193,13 +193,13 @@ esac
 shift # past argument or value
 done
 
-if [ "$(which cdebootstrap)" == "" ]; then
-  print_requirement_cdebootstrap
+if [ "$(which debootstrap)" == "" ]; then
+  print_requirement_debootstrap
   exit 1
 fi
 
-if [[ "${DEBOOTSTRAP}" == "true" ]] && [ "$(which debootstrap)" == "" ]; then
-  print_requirement_debootstrap
+if [[ "${CDEBOOTSTRAP}" == "true" ]] && [ "$(which cdebootstrap)" == "" ]; then
+  print_requirement_cdebootstrap
   exit 1
 fi
 
@@ -216,6 +216,7 @@ export PACKAGE_STANDARD
 export PACKAGE_INSTALL
 export PACKAGE_PURGE
 export IF
+export MIRROR
 
 # try to load root password hash
 if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
@@ -281,10 +282,10 @@ then
 
   mkdir -p ${MOUNT_TRARGET}
   mount ${DEV_ROOT} ${MOUNT_TRARGET} || exit 1
-  if [[ ! "${DEBOOTSTRAP}" == "true" ]]; then
-    cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
-  else
+  if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
     debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
+  else
+    cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
   fi
   if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
     mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot" || exit 1
