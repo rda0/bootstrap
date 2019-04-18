@@ -12,6 +12,7 @@ hdparm
 krb5-locales
 libc-l10n
 liblockfile-bin
+libnss-systemd
 libpam-systemd
 locales
 lsof
@@ -29,7 +30,6 @@ python-minimal
 python2.7
 python3-reportbug
 reportbug
-reportbug-gtk
 telnet
 traceroute
 ucf

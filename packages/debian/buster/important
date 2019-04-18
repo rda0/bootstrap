@@ -21,7 +21,6 @@ less
 logrotate
 nano
 netbase
-netplan.io
 procps
 readline-common
 rsyslog
