@@ -5,17 +5,15 @@ export DEBIAN_PRIORITY=critical
 
 if [ "${DIST}" == "debian" ]; then
 cat > /etc/apt/sources.list << EOF
-deb http://debian.ethz.ch/debian ${RELEASE} main contrib non-free
-#deb-src http://debian.ethz.ch/debian ${RELEASE} main contrib non-free
-deb http://debian.ethz.ch/debian-security ${RELEASE}/updates main contrib non-free
-#deb-src http://debian.ethz.ch/debian-security ${RELEASE}/updates main contrib non-free
+deb ${MIRROR}/debian ${RELEASE} main contrib non-free
+#deb-src ${MIRROR}/debian ${RELEASE} main contrib non-free
 deb http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 #deb-src http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 EOF
 else
 cat > /etc/apt/sources.list << EOF
-deb http://ubuntu.ethz.ch/ubuntu ${RELEASE} main restricted universe multiverse
-#deb-src http://ubuntu.ethz.ch/ubuntu ${RELEASE} main restricted universe multiverse
+deb ${MIRROR}/ubuntu ${RELEASE} main restricted universe multiverse
+#deb-src ${MIRROR}/ubuntu ${RELEASE} main restricted universe multiverse
 deb http://security.ubuntu.com/ubuntu ${RELEASE}-security main restricted universe multiverse
 #deb-src http://security.ubuntu.com/ubuntu ${RELEASE}-security main restricted universe multiverse
 EOF
