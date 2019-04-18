@@ -7,6 +7,7 @@ bc
 bind9-host
 bsd-mailx
 bzip2
+dbus
 dc
 debian-faq
 dnsutils
@@ -21,7 +22,6 @@ gettext-base
 host
 info
 install-info
-intel-microcode
 krb5-locales
 libasprintf0c2
 libbind9-90
@@ -74,7 +74,6 @@ libxml2
 locales
 lsof
 m4
-manpages
 mime-support
 mlocate
 mutt
