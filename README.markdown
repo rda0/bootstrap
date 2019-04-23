@@ -1,7 +1,7 @@
 bootstrap-lv
 ============
 
-Bootstrap a bootable system to a filesystem on a logical volume or file-based image.
+Bootstrap a bootable system to a file system on a logical volume or file-based image.
 
 Description
 -----------
@@ -45,7 +45,7 @@ Options:
     name
         Name of the lv or file to be created (`-root` or `-boot` will be appended)
     pool
-        Volume group name or file-based image base path (when `--file` is used)
+        Volume group name or file-based image base-path (when `--file` is used)
     dist
         Distribution name (example: `debian`, `ubuntu`)
     release
@@ -108,13 +108,13 @@ This will create the following logical volumes:
 To create a file-based image instead of a logical volume add the `-f` option and specify the base-path:
 
 ```bash
-./bootstrap debian-buster-img /var/lib/img debian buster -f
+./bootstrap debian-buster-img /var/opt/img debian buster -f
 ```
 
 This will create the following file-based image:
 
 ```
-/var/lib/img/debian-buster-img-root
+/var/opt/img/debian-buster-img-root
 ```
 
 Configuration
@@ -141,7 +141,7 @@ aptitude search --display-format "%p" '~pimportant' > important
 aptitude search --display-format "%p" '~pstandard' > standard
 ```
 
-Place the files in the following location:
+Place the files (`required`, `important`, `standard`) in the following location:
 
 ```
 packages/<dist>/<release>/
@@ -158,3 +158,20 @@ To purge some unwanted packages, write a list of packages in:
 ```
 packages/<dist>/<release>/purge
 ```
+
+The default is to bootstrap a minimal base-system (`debootstrap`) with no additional packages except:
+
+- kernel metapackage
+- bootloader (`extlinux` or `grub2`)
+- `locales`
+- `tzdata`
+
+The following extra packages should be installed by default (mainly to support immediate deployment of spawned VMs using Ansible). This is the default for the current releases in `packages/`:
+
+- `python-minimal`: Required for Ansible
+- `python-apt`: Required for Ansible
+- `acpi-support`: Required for reboot from host-system
+- `ssh`: Required for ssh login (Ansible)
+- `bash-completion`: Optional
+- `vim`: Optional
+- `haveged`: Required to allow instantaneous ssh connection without long delays (userspace entropy daemon)

@@ -8,7 +8,7 @@ print_usage() {
   echo "    name"
   echo "        Name of the lv or file to be created (\`-root\` or \`-boot\` will be appended)"
   echo "    pool"
-  echo "        Volume group name or file-based image base path (when \`--file\` is used)"
+  echo "        Volume group name or file-based image base-path (when \`--file\` is used)"
   echo "    dist"
   echo "        Distribution name (example: \`debian\`, \`ubuntu\`)"
   echo "    release"
@@ -332,7 +332,6 @@ then
   if [[ ! "${FILE}" == "true" ]]; then
     echo "bootstrapping to logical volume..."
 
-
     lvcreate ${LVCREATE_OPTS} -L ${IMG_ROOT_SIZE} -n ${IMG_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
@@ -347,7 +346,7 @@ then
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
     fi
 
-    mkdir -p ${MOUNT_TARGET}
+    mkdir -p ${MOUNT_TARGET} || exit 1
     mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
     export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
 
@@ -359,6 +358,7 @@ then
   else
     echo "bootstrapping to file image..."
 
+    mkdir -p ${POOL} || exit 1
     fallocate -l ${IMG_ROOT_SIZE} ${DEV_ROOT} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
@@ -373,7 +373,7 @@ then
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
     fi
 
-    mkdir -p ${MOUNT_TARGET}
+    mkdir -p ${MOUNT_TARGET} || exit 1
     mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
     export MAPPER_ROOT="$(losetup --list | grep ${DEV_ROOT} | cut -d ' ' -f1)"
 
