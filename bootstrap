@@ -72,28 +72,28 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
-export VM="${1}"
+export NAME="${1}"
 shift
-export VG="${1}"
+export POOL="${1}"
 shift
 export DIST="${1}"
 shift
 export RELEASE="${1}"
 shift
-export LV_ROOT="${VM}-root"
-export LV_BOOT="${VM}-boot"
-export DEV_ROOT="/dev/${VG}/${LV_ROOT}"
-export DEV_BOOT="/dev/${VG}/${LV_BOOT}"
-export MAPPER_ROOT="/dev/mapper/${VG}-${VM//-/--}--root"
-export MAPPER_BOOT="/dev/mapper/${VG}-${VM//-/--}--boot"
+export LV_ROOT="${NAME}-root"
+export LV_BOOT="${NAME}-boot"
+export DEV_ROOT="/dev/${POOL}/${LV_ROOT}"
+export DEV_BOOT="/dev/${POOL}/${LV_BOOT}"
+export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
+export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
 export MAPPER_BOOT1="${MAPPER_BOOT}1"
-export MOUNT_TRARGET="/mnt/bootstrap/${VG}-${LV_ROOT}"
+export MOUNT_TRARGET="/mnt/bootstrap/${POOL}-${LV_ROOT}"
 export SCRIPT_PATH="${DIR}"
 export PACKAGE_PATH="${SCRIPT_PATH}/packages"
 export CONFIG_PATH="${SCRIPT_PATH}/config"
 export DEBOOTSTRAP_EXCLUDE="--exclude=editor,debconf-2.0"
 export FILE_BASE="/var/lib/img"
-export FILE_PATH="${FILE_BASE}/${VM}-root"
+export FILE_PATH="${FILE_BASE}/${NAME}-root"
 
 LV_ROOT_SIZE="2G"
 LV_BOOT_SIZE=""
@@ -270,8 +270,8 @@ if [ ! -z "${LV_BOOT_SIZE}" ]; then
   fi
 fi
 
-echo "name: ${VM}"
-echo "vg: ${VG}"
+echo "name: ${NAME}"
+echo "pool: ${POOL}"
 echo "root lv size: $LV_ROOT_SIZE"
 [[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv size: ${LV_BOOT_SIZE}"
 echo "root lv: ${DEV_ROOT}"
@@ -288,11 +288,11 @@ then
   if [[ ! "${FILE}" == "true" ]]; then
     echo "bootstrapping to lvm..."
 
-    lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${VG} || exit 1
+    lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
     if [ ! -z "${LV_BOOT_SIZE}" ]; then
-      lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${VG} || exit 1
+      lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${POOL} || exit 1
       parted ${DEV_BOOT} mklabel msdos || exit 1
       parted ${DEV_BOOT} mkpart primary ext2 1M 100% || exit 1
       parted ${DEV_BOOT} set 1 boot on || exit 1
