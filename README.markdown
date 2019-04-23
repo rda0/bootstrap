@@ -6,7 +6,7 @@ Bootstrap a bootable system to a filesystem on a logical volume or file-based im
 Description
 -----------
 
-I created this script to bootstrap a bootable system into an lvm disk to be used as KVM virtual machine disk image.
+I created this script to bootstrap a bootable system into an lvm or file-based disk image to be used as KVM virtual machine disk image.
 
 If you are familiar with Xen, you probably came across this kind of setup. With Xen you can boot directly from a file-system without a partition table using the `pygrub` bootloader. This is very useful when it comes to resizing the logical volume, as you do not have to mess with partition tables and you can do online resizing of virtual disks.
 
@@ -105,16 +105,16 @@ This will create the following logical volumes:
 /dev/vg0/debian-stretch-lv-root
 ```
 
-To create a file-based image instead of a logical volume add the `-f` option:
+To create a file-based image instead of a logical volume add the `-f` option and specify the base-path:
 
 ```bash
-bootstrap-lv vm-tpl-buster /var/lib/img debian buster -f
+./bootstrap debian-buster-img /var/lib/img debian buster -f
 ```
 
 This will create the following file-based image:
 
 ```
-/var/lib/img/vm-tpl-buster-root
+/var/lib/img/debian-buster-img-root
 ```
 
 Configuration
