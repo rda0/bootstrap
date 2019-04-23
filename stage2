@@ -36,10 +36,12 @@ apt-get update
 apt-get upgrade -y
 
 apt-get install debconf-utils -y
+apt-get clean
 
 echo 'locales locales/default_environment_locale select en_US.UTF-8' | debconf-set-selections
 echo 'locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8' | debconf-set-selections
 apt-get install locales -y
+apt-get clean
 echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
 locale-gen
 update-locale LANG=en_US.UTF-8
@@ -51,6 +53,8 @@ if [ "${DIST}" == "debian" ]; then
 else
     apt-get install linux-image-generic -y
 fi
+
+apt-get clean
 
 if [ -z "${LV_BOOT_SIZE}" ]; then
   apt-get install extlinux -y
@@ -96,6 +100,8 @@ EOF
   sed -i "s/${MAPPER_ROOT//\//\\\/}/\/dev\/sdb/g" /boot/grub/grub.cfg
 fi
 
+apt-get clean
+
 if [ "${RELEASE}" != "jessie" ]; then
     cat > /etc/systemd/network/${IF}.network << EOF
 [Match]
@@ -135,24 +141,30 @@ echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections
 echo 'tzdata tzdata/Zones/Europe select Zurich' | debconf-set-selections
 apt-get install tzdata -y
 
+apt-get clean
+
 if [ ! -z "${PACKAGE_REQUIRED}" ]; then
     echo "INSTALLING PACKAGE_REQUIRED ..."
     apt-get install --install-recommends ${PACKAGE_REQUIRED} -y
+    apt-get clean
 fi
 
 if [ ! -z "${PACKAGE_IMPORTANT}" ]; then
     echo "INSTALLING PACKAGE_IMPORTANT ..."
     apt-get install --install-recommends ${PACKAGE_IMPORTANT} -y
+    apt-get clean
 fi
 
 if [ ! -z "${PACKAGE_STANDARD}" ]; then
     echo "INSTALLING PACKAGE_STANDARD ..."
     apt-get install --install-recommends ${PACKAGE_STANDARD} -y
+    apt-get clean
 fi
 
 if [ ! -z "${PACKAGE_INSTALL}" ]; then
     echo "INSTALLING PACKAGE_INSTALL ..."
     apt-get install --no-install-recommends ${PACKAGE_INSTALL} -y
+    apt-get clean
 fi
 
 if [ ! -z "${PACKAGE_PURGE}" ]; then
