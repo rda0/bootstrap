@@ -56,7 +56,7 @@ fi
 
 apt-get clean
 
-if [ -z "${LV_BOOT_SIZE}" ]; then
+if [ -z "${IMG_BOOT_SIZE}" ]; then
   apt-get install extlinux -y
 
   extlinux --install /
@@ -77,7 +77,7 @@ EOF
 /dev/sda  /     ${FS_ROOT} errors=remount-ro 0 1
 EOF
 else
-  apt-get install grub-pc -y
+  apt-get install grub2 -y
 
   cat > /etc/default/grub << 'EOF'
 GRUB_DEFAULT=0
@@ -87,6 +87,12 @@ GRUB_CMDLINE_LINUX_DEFAULT=""
 GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop"
 GRUB_TERMINAL="serial"
 GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"
+GRUB_DEVICE="/dev/sdb"
+GRUB_PLATFORMS="pc"
+GRUB_DISABLE_LINUX_UUID="true"
+GRUB_DISABLE_RECOVERY="true"
+GRUB_DISABLE_OS_PROBER="true"
+GRUB_DISABLE_SUBMENU="y"
 EOF
 
   cat > /etc/fstab << EOF
@@ -97,7 +103,7 @@ EOF
 
   grub-install ${MAPPER_BOOT}
   update-grub
-  sed -i "s/${MAPPER_ROOT//\//\\\/}/\/dev\/sdb/g" /boot/grub/grub.cfg
+  #sed -i "s/${MAPPER_ROOT//\//\\\/}/\/dev\/sdb/g" /boot/grub/grub.cfg
 fi
 
 apt-get clean

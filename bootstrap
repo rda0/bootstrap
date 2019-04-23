@@ -38,14 +38,9 @@ print_usage() {
   echo "    -c, --cdebootstrap"
   echo "        Use cdebootstrap instead of debootstrap"
   echo "    -f, --file"
-  echo "        Bootstrap to a file-based image (cannot be used together with \`--boot\`)"
+  echo "        Bootstrap to file-based image"
   echo "    -h, --help"
   echo "        Print this help message"
-}
-
-print_error_file_boot() {
-  echo -e "error: using a boot disk is not supported when bootstrapping to a file-based image."
-  echo -e "\n    see \`${0} --help\`\n"
 }
 
 print_error_pool_not_vg() {
@@ -224,16 +219,13 @@ done
 
 export IMG_ROOT="${NAME}-root"
 export IMG_BOOT="${NAME}-boot"
-export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
-export DEV_BOOT="/dev/${POOL}/${IMG_BOOT}"
-export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
-export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
-export MAPPER_BOOT1="${MAPPER_BOOT}1"
-export FILE_PATH="${POOL}/${IMG_ROOT}"
 
-if [ ! -z "${IMG_BOOT_SIZE}" ] && [[ "${FILE}" == "true" ]]; then
-  print_error_file_boot
-  exit 1
+if [[ ! "${FILE}" == "true" ]]; then
+  export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
+  export DEV_BOOT="/dev/${POOL}/${IMG_BOOT}"
+else
+  export DEV_ROOT="${POOL}/${IMG_ROOT}"
+  export DEV_BOOT="${POOL}/${IMG_BOOT}"
 fi
 
 if [[ ! "${FILE}" == "true" ]] && [[ ${POOL} == *"/"* ]]; then
@@ -272,6 +264,7 @@ export PACKAGE_PURGE
 export IF
 export MIRROR
 export MOUNT_TARGET
+export FILE
 
 # try to load root password hash
 if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
@@ -285,31 +278,24 @@ fi
 
 export ROOT_PASSWORD_HASH
 
-if [[ ! "${FILE}" == "true" ]]; then
-  if [ -e ${DEV_ROOT} ]; then
-    echo "error: ${DEV_ROOT} already exists!"
+if [ -e ${DEV_ROOT} ]; then
+  echo "error: ${DEV_ROOT} already exists!"
+  exit 1
+fi
+
+if [ ! -z "${IMG_BOOT_SIZE}" ]; then
+  if [ -e ${DEV_BOOT} ]; then
+    echo "error: ${DEV_BOOT} already exists!"
     exit 1
   fi
 
-  if [ ! -z "${IMG_BOOT_SIZE}" ]; then
-    if [ -e ${DEV_BOOT} ]; then
-      echo "error: ${DEV_BOOT} already exists!"
-      exit 1
-    fi
-
-    if [ "$(which parted)" == "" ]; then
-      print_requirement_part
-      exit 1
-    fi
-
-    if [ "$(which kpartx)" == "" ]; then
-      print_requirement_part
-      exit 1
-    fi
+  if [ "$(which parted)" == "" ]; then
+    print_requirement_part
+    exit 1
   fi
-else
-  if [ -e ${FILE_PATH} ]; then
-    echo "error: ${FILE_PATH} already exists!"
+
+  if [ "$(which kpartx)" == "" ]; then
+    print_requirement_part
     exit 1
   fi
 fi
@@ -321,16 +307,11 @@ fi
 
 echo "name: ${NAME}"
 echo "pool: ${POOL}"
-if [[ ! "${FILE}" == "true" ]]; then
-  echo "root lv: ${DEV_ROOT}"
-  echo "root lv size: ${IMG_ROOT_SIZE}"
-else
-  echo "root image: ${FILE_PATH}"
-  echo "root image size: ${IMG_ROOT_SIZE}"
-fi
+echo "root disk: ${DEV_ROOT}"
+echo "root size: ${IMG_ROOT_SIZE}"
 if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
-  echo "boot lv: ${DEV_BOOT}"
-  echo "boot lv size: ${IMG_BOOT_SIZE}"
+  echo "boot disk: ${DEV_BOOT}"
+  echo "boot size: ${IMG_BOOT_SIZE}"
 fi
 echo
 
@@ -351,6 +332,7 @@ then
   if [[ ! "${FILE}" == "true" ]]; then
     echo "bootstrapping to logical volume..."
 
+
     lvcreate ${LVCREATE_OPTS} -L ${IMG_ROOT_SIZE} -n ${IMG_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
@@ -360,11 +342,14 @@ then
       parted ${DEV_BOOT} mkpart primary ${FS_BOOT} 1M 100% || exit 1
       parted ${DEV_BOOT} set 1 boot on || exit 1
       kpartx -av ${DEV_BOOT} || exit 1
+      export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
+      export MAPPER_BOOT1="${MAPPER_BOOT}1"
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
     fi
 
     mkdir -p ${MOUNT_TARGET}
     mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
+    export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
 
     bootstrap_stage1
 
@@ -373,13 +358,30 @@ then
     fi
   else
     echo "bootstrapping to file image..."
-    fallocate -l ${IMG_ROOT_SIZE} ${FILE_PATH} || exit 1
-    mkfs.${FS_ROOT} ${FS_OPTIONS} ${FILE_PATH} || exit 1
+
+    fallocate -l ${IMG_ROOT_SIZE} ${DEV_ROOT} || exit 1
+    mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
+
+    if [ ! -z "${IMG_BOOT_SIZE}" ]; then
+      fallocate -l ${IMG_BOOT_SIZE} ${DEV_BOOT} || exit 1
+      parted ${DEV_BOOT} mklabel msdos || exit 1
+      parted ${DEV_BOOT} mkpart primary ${FS_BOOT} 1M 100% || exit 1
+      parted ${DEV_BOOT} set 1 boot on || exit 1
+      kpartx -av ${DEV_BOOT} || exit 1
+      export MAPPER_BOOT="$(losetup --list | grep ${DEV_BOOT} | cut -d ' ' -f1)"
+      export MAPPER_BOOT1="${MAPPER_BOOT/\/dev\//\/dev\/mapper\/}p1"
+      mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
+    fi
 
     mkdir -p ${MOUNT_TARGET}
-    mount ${FILE_PATH} ${MOUNT_TARGET} || exit 1
+    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
+    export MAPPER_ROOT="$(losetup --list | grep ${DEV_ROOT} | cut -d ' ' -f1)"
 
     bootstrap_stage1
+
+    if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
+      mount ${MAPPER_BOOT1} "${MOUNT_TARGET}/boot" || exit 1
+    fi
   fi
 
   mount --bind /dev "${MOUNT_TARGET}/dev"
