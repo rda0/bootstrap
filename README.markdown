@@ -1,7 +1,7 @@
 bootstrap-lv
 ============
 
-Bootstrap a bootable system to an lvm filesystem.
+Bootstrap a bootable system to a filesystem on a logical volume or file-based image.
 
 Description
 -----------
@@ -21,47 +21,61 @@ There are two options to achieve this:
 Requirements
 ------------
 
-- `cdebootstrap`
+- `debootstrap`
 
 Optional:
 
 - `ubuntu-archive-keyring`
 - `parted`
 - `kpartx`
+- `fallocate`
+- `cdebootstrap`
 
 Usage
 -----
 
 ```bash
-Usage: ./bootstrap vm vg dist release [options]
+Usage: bootstrap-lv name pool dist release [options]
 
-    Bootstraps a bootable kvm vm to lvm filesystem.
+    Bootstraps a bootable filesystem to logical volume or file-based image.
     Default bootloader: extlinux
 
 Options:
 
-    vm
-        Name of the vm (used for lvm naming)
-    vg
-        Volume group name
+    name
+        Name of the lv or file to be created (`-root` or `-boot` will be appended)
+    pool
+        Volume group name or file-based image base path (when `--file` is used)
     dist
         Distribution name (example: `debian`, `ubuntu`)
     release
         Release name (example `stable`, `stretch`, etc)
     -r, --root <size>
-        Size of root fs lv (default: `2G`)
+        Size of root fs image (default: `2G`)
     -b, --boot <size>
-        Enable boot disk (and grub), size of boot disk lv (example: `512M`)
+        Enable boot disk (and grub), size of boot disk (example: `512M`)
     -t, --fs-type <type>
-        Type for root file system (default: `ext4`)
+        File system type (default: `ext4`)
+    --boot-fs-type <type>
+        Boot disk file system type (defaults to the value of `--fs-type`)
+    -o, --fs-options <options>
+        Options passed to `mkfs.<fs-type>` (default: use system defaults)
     -i, --package-install <package_list>
         List of extra packages to install (default: bootstrap-packages/<dist>/<release>/install)
     -u, --package-purge <package_list>
         List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)
     -n, --network-interface <interface_name>
         Network interface name (default: `eth0`)
+    -m, --mirror <mirror_url>
+        Mirror to use (default: `http://debian.ethz.ch`)
+    -a, --mount-target <path>
+        Target mount point (default: `/mnt/bootstrap`)
     -y, --yes
         Run non-interactively and answer questions with yes
+    -c, --cdebootstrap
+        Use cdebootstrap instead of debootstrap
+    -f, --file
+        Bootstrap to file-based image
     -h, --help
         Print this help message
 ```
@@ -89,6 +103,18 @@ This will create the following logical volumes:
 ```
 /dev/vg0/debian-stretch-lv-boot
 /dev/vg0/debian-stretch-lv-root
+```
+
+To create a file-based image instead of a logical volume add the `-f` option:
+
+```bash
+bootstrap-lv vm-tpl-buster /var/lib/img debian buster -f
+```
+
+This will create the following file-based image:
+
+```
+/var/lib/img/vm-tpl-buster-root
 ```
 
 Configuration
