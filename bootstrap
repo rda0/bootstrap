@@ -315,6 +315,14 @@ if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
 fi
 echo
 
+cleanup_umount() {
+  echo "warning: cannot unmount recursively, trying to kill processes..."
+  sync
+  fuser -ck "${MOUNT_TARGET}"
+  echo "trying to unmount again..."
+  umount --recursive "${MOUNT_TARGET}"
+}
+
 bootstrap_stage1() {
   if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
     debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
@@ -396,18 +404,25 @@ then
 
   . "${SCRIPT_PATH}/stage3"
 
-  if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
-    umount "${MOUNT_TARGET}/boot" || exit 1
-  fi
-  umount "${MOUNT_TARGET}/sys" || exit 1
-  umount "${MOUNT_TARGET}/proc" || exit 1
-  #umount "${MOUNT_TARGET}/dev/pts" || exit 1
-  umount "${MOUNT_TARGET}/dev" || exit 1
-  umount "${MOUNT_TARGET}" || exit 1
+  #if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
+  #  umount "${MOUNT_TARGET}/boot" || exit 1
+  #fi
+  #umount "${MOUNT_TARGET}/sys" || exit 1
+  #umount "${MOUNT_TARGET}/proc" || exit 1
+  ##umount "${MOUNT_TARGET}/dev/pts" || exit 1
+  #umount "${MOUNT_TARGET}/dev" || exit 1
+  #umount "${MOUNT_TARGET}" || exit 1
+
+  umount --recursive "${MOUNT_TARGET}" || cleanup_umount
+
   if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
     kpartx -d ${DEV_BOOT} || exit 1
   fi
   rmdir "${MOUNT_TARGET}"
+
+  echo "bootstrap successful."
+  exit 0
 fi
 
+echo -e "\nbootstrap aborted."
 exit 0
