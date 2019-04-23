@@ -141,11 +141,8 @@ fi
 
 echo "${VM}" > /etc/hostname
 
-apt-get purge tzdata -y
-echo PURGE | debconf-communicate tzdata
-echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections
-echo 'tzdata tzdata/Zones/Europe select Zurich' | debconf-set-selections
-apt-get install tzdata -y
+ln -fs "/usr/share/zoneinfo/${TIME_ZONE}" /etc/localtime
+dpkg-reconfigure -f noninteractive tzdata
 
 apt-get clean
 
