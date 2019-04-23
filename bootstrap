@@ -1,14 +1,14 @@
 #!/bin/bash
 
 print_usage() {
-  echo -e "Usage: ${0} vm vg dist release [options]"
-  echo -e "\n    Bootstraps a bootable kvm vm to lvm filesystem."
+  echo -e "Usage: ${0} name pool dist release [options]"
+  echo -e "\n    Bootstraps a bootable filesystem to logical volume or file-based image."
   echo -e "    Default bootloader: extlinux"
   echo -e "\nOptions:\n"
-  echo "    vm"
-  echo "        Name of the vm (used for lvm naming)"
-  echo "    vg"
-  echo "        Volume group name"
+  echo "    name"
+  echo "        Name of the lv or file to be created (\`-root\` or \`-boot\` will be appended)"
+  echo "    pool"
+  echo "        Volume group name or file-based image base path (when \`-f\` is used)"
   echo "    dist"
   echo "        Distribution name (example: \`debian\`, \`ubuntu\`)"
   echo "    release"
@@ -52,6 +52,11 @@ print_requirement_cdebootstrap() {
 print_requirement_part() {
   echo -e "error: parted or kpartx is not installed. To install run:"
   echo -e "\n    apt install parted kpartx\n"
+}
+
+print_requirement_fallocate() {
+  echo -e "error: fallocate is not installed. To install run:"
+  echo -e "\n    apt install util-linux\n"
 }
 
 if [ "$#" -lt 4 ] || [ "$#" -gt 17 ]; then
@@ -208,6 +213,11 @@ fi
 
 if [[ "${CDEBOOTSTRAP}" == "true" ]] && [ "$(which cdebootstrap)" == "" ]; then
   print_requirement_cdebootstrap
+  exit 1
+fi
+
+if [[ "${FILE}" == "true" ]] && [ "$(which fallocate)" == "" ]; then
+  print_requirement_fallocate
   exit 1
 fi
 
