@@ -31,6 +31,8 @@ print_usage() {
   echo "        Network interface name (default: \`eth0\`)"
   echo "    -m, --mirror <mirror_url>"
   echo "        Mirror to use (default: \`http://debian.ethz.ch\`)"
+  echo "    -a, --mount-target <path>"
+  echo "        Target mount point (default: \`/mnt/bootstrap\`)"
   echo "    -y, --yes"
   echo "        Run non-interactively and answer questions with yes"
   echo "    -c, --cdebootstrap"
@@ -43,6 +45,11 @@ print_usage() {
 
 print_error_file_boot() {
   echo -e "error: using a boot disk is not supported when bootstrapping to a file-based image."
+  echo -e "\n    see \`${0} --help\`\n"
+}
+
+print_error_pool_not_vg() {
+  echo -e "error: invalid value for pool. volume group name expected (no slash)"
   echo -e "\n    see \`${0} --help\`\n"
 }
 
@@ -66,7 +73,7 @@ print_requirement_fallocate() {
   echo -e "\n    apt install util-linux\n"
 }
 
-if [ "$#" -lt 4 ] || [ "$#" -gt 17 ]; then
+if [ "$#" -lt 4 ]; then
   print_usage
   exit 1
 fi
@@ -102,6 +109,7 @@ YES="false"
 FILE="false"
 LVCREATE_OPTS="--zero y --wipesignatures y"
 MIRROR="http://debian.ethz.ch"
+MOUNT_TARGET="/mnt/bootstrap"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -206,6 +214,10 @@ case $key in
         MIRROR="${2}"
         shift
         ;;
+    -a|--mount-target)
+        MOUNT_TARGET="${2}"
+        shift
+        ;;
 esac
 shift # past argument or value
 done
@@ -217,13 +229,16 @@ export DEV_BOOT="/dev/${POOL}/${IMG_BOOT}"
 export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
 export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
 export MAPPER_BOOT1="${MAPPER_BOOT}1"
-export MOUNT_TRARGET="/mnt/bootstrap/${POOL}-${IMG_ROOT}"
-export FILE_BASE="/var/lib/img"
-export FILE_PATH="${FILE_BASE}/${NAME}-root"
+export FILE_PATH="${POOL}/${IMG_ROOT}"
 
 if [ ! -z "${IMG_BOOT_SIZE}" ] && [[ "${FILE}" == "true" ]]; then
-    print_error_file_boot
-    exit 1
+  print_error_file_boot
+  exit 1
+fi
+
+if [[ ! "${FILE}" == "true" ]] && [[ ${POOL} == *"/"* ]]; then
+  print_error_pool_not_vg
+  exit 1
 fi
 
 if [ "$(which debootstrap)" == "" ]; then
@@ -256,6 +271,7 @@ export PACKAGE_INSTALL
 export PACKAGE_PURGE
 export IF
 export MIRROR
+export MOUNT_TARGET
 
 # try to load root password hash
 if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
@@ -269,36 +285,62 @@ fi
 
 export ROOT_PASSWORD_HASH
 
-if [ -e ${DEV_ROOT} ]; then
-  echo "error: ${DEV_ROOT} already exists!"
-  exit 1
+if [[ ! "${FILE}" == "true" ]]; then
+  if [ -e ${DEV_ROOT} ]; then
+    echo "error: ${DEV_ROOT} already exists!"
+    exit 1
+  fi
+
+  if [ ! -z "${IMG_BOOT_SIZE}" ]; then
+    if [ -e ${DEV_BOOT} ]; then
+      echo "error: ${DEV_BOOT} already exists!"
+      exit 1
+    fi
+
+    if [ "$(which parted)" == "" ]; then
+      print_requirement_part
+      exit 1
+    fi
+
+    if [ "$(which kpartx)" == "" ]; then
+      print_requirement_part
+      exit 1
+    fi
+  fi
+else
+  if [ -e ${FILE_PATH} ]; then
+    echo "error: ${FILE_PATH} already exists!"
+    exit 1
+  fi
 fi
 
-if [ ! -z "${IMG_BOOT_SIZE}" ]; then
-  if [ -e ${DEV_BOOT} ]; then
-    echo "error: ${DEV_BOOT} already exists!"
-    exit 1
-  fi
-
-  if [ "$(which parted)" == "" ]; then
-    print_requirement_part
-    exit 1
-  fi
-
-  if [ "$(which kpartx)" == "" ]; then
-    print_requirement_part
-    exit 1
-  fi
+if [ -e ${MOUNT_TARGET} ]; then
+  echo "error: ${MOUNT_TARGET} already exists!"
+  exit 1
 fi
 
 echo "name: ${NAME}"
 echo "pool: ${POOL}"
-echo "root lv size: $IMG_ROOT_SIZE"
-[[ ! -z "${IMG_BOOT_SIZE}" ]] && echo "boot lv size: ${IMG_BOOT_SIZE}"
-echo "root lv: ${DEV_ROOT}"
-[[ ! -z "${IMG_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
-[[ "${FILE}" == "true" ]] && echo "root img: ${FILE_PATH}"
+if [[ ! "${FILE}" == "true" ]]; then
+  echo "root lv: ${DEV_ROOT}"
+  echo "root lv size: ${IMG_ROOT_SIZE}"
+else
+  echo "root image: ${FILE_PATH}"
+  echo "root image size: ${IMG_ROOT_SIZE}"
+fi
+if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
+  echo "boot lv: ${DEV_BOOT}"
+  echo "boot lv size: ${IMG_BOOT_SIZE}"
+fi
 echo
+
+bootstrap_stage1() {
+  if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
+    debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
+  else
+    cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
+  fi
+}
 
 if [[ ! "${YES}" == "true" ]]; then
   read -p "Are you sure? [y/N]" -n 1 -r
@@ -307,7 +349,7 @@ fi
 if [[ "${YES}" == "true" ]] || [[ $REPLY =~ ^[Yy]$ ]]
 then
   if [[ ! "${FILE}" == "true" ]]; then
-    echo "bootstrapping to lvm..."
+    echo "bootstrapping to logical volume..."
 
     lvcreate ${LVCREATE_OPTS} -L ${IMG_ROOT_SIZE} -n ${IMG_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
@@ -321,53 +363,49 @@ then
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
     fi
 
-    mkdir -p ${MOUNT_TRARGET}
-    mount ${DEV_ROOT} ${MOUNT_TRARGET} || exit 1
-    if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
-      debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
-    else
-      cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
-    fi
+    mkdir -p ${MOUNT_TARGET}
+    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
+
+    bootstrap_stage1
+
     if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
-      mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot" || exit 1
+      mount ${MAPPER_BOOT1} "${MOUNT_TARGET}/boot" || exit 1
     fi
   else
     echo "bootstrapping to file image..."
     fallocate -l ${IMG_ROOT_SIZE} ${FILE_PATH} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${FILE_PATH} || exit 1
-    mkdir -p ${MOUNT_TRARGET}
-    mount ${FILE_PATH} ${MOUNT_TRARGET} || exit 1
-    if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
-      debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
-    else
-      cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
-    fi
+
+    mkdir -p ${MOUNT_TARGET}
+    mount ${FILE_PATH} ${MOUNT_TARGET} || exit 1
+
+    bootstrap_stage1
   fi
 
-  mount --bind /dev "${MOUNT_TRARGET}/dev"
-  #mount --bind /dev/pts "${MOUNT_TRARGET}/dev/pts"
-  mount -t proc proc "${MOUNT_TRARGET}/proc"
-  mount -t sysfs sysfs "${MOUNT_TRARGET}/sys"
+  mount --bind /dev "${MOUNT_TARGET}/dev"
+  #mount --bind /dev/pts "${MOUNT_TARGET}/dev/pts"
+  mount -t proc proc "${MOUNT_TARGET}/proc"
+  mount -t sysfs sysfs "${MOUNT_TARGET}/sys"
 
-  \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TRARGET}
-  chmod +x "${MOUNT_TRARGET}/stage2"
-  LANG=C.UTF-8 chroot ${MOUNT_TRARGET} /bin/bash /stage2 || exit 1
-  rm "${MOUNT_TRARGET}/stage2"
+  \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TARGET}
+  chmod +x "${MOUNT_TARGET}/stage2"
+  LANG=C.UTF-8 chroot ${MOUNT_TARGET} /bin/bash /stage2 || exit 1
+  rm "${MOUNT_TARGET}/stage2"
 
   . "${SCRIPT_PATH}/stage3"
 
   if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
-    umount "${MOUNT_TRARGET}/boot" || exit 1
+    umount "${MOUNT_TARGET}/boot" || exit 1
   fi
-  umount "${MOUNT_TRARGET}/sys" || exit 1
-  umount "${MOUNT_TRARGET}/proc" || exit 1
-  #umount "${MOUNT_TRARGET}/dev/pts" || exit 1
-  umount "${MOUNT_TRARGET}/dev" || exit 1
-  umount "${MOUNT_TRARGET}" || exit 1
+  umount "${MOUNT_TARGET}/sys" || exit 1
+  umount "${MOUNT_TARGET}/proc" || exit 1
+  #umount "${MOUNT_TARGET}/dev/pts" || exit 1
+  umount "${MOUNT_TARGET}/dev" || exit 1
+  umount "${MOUNT_TARGET}" || exit 1
   if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
     kpartx -d ${DEV_BOOT} || exit 1
   fi
-  rmdir "${MOUNT_TRARGET}"
+  rmdir "${MOUNT_TARGET}"
 fi
 
 exit 0
