@@ -408,7 +408,7 @@ then
 
   \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TARGET}
   chmod +x "${MOUNT_TARGET}/stage2"
-  LANG=C.UTF-8 chroot ${MOUNT_TARGET} /bin/bash /stage2 || exit 1
+  LANG=C LC_ALL=C LANGUAGE=en chroot ${MOUNT_TARGET} /bin/bash /stage2 || exit 1
   rm "${MOUNT_TARGET}/stage2"
 
   . "${SCRIPT_PATH}/stage3"
