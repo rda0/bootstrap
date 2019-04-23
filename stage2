@@ -88,7 +88,7 @@ EOF
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
 /dev/sdb  /     ${FS_ROOT} errors=remount-ro 0 1
-/dev/sda1 /boot ext2 defaults          0 2
+/dev/sda1 /boot ${FS_BOOT} defaults          0 2
 EOF
 
   grub-install ${MAPPER_BOOT}

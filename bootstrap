@@ -8,17 +8,19 @@ print_usage() {
   echo "    name"
   echo "        Name of the lv or file to be created (\`-root\` or \`-boot\` will be appended)"
   echo "    pool"
-  echo "        Volume group name or file-based image base path (when \`-f\` is used)"
+  echo "        Volume group name or file-based image base path (when \`--file\` is used)"
   echo "    dist"
   echo "        Distribution name (example: \`debian\`, \`ubuntu\`)"
   echo "    release"
   echo "        Release name (example \`stable\`, \`stretch\`, etc)"
   echo "    -r, --root <size>"
-  echo "        Size of root fs lv (default: \`2G\`)"
+  echo "        Size of root fs image (default: \`2G\`)"
   echo "    -b, --boot <size>"
-  echo "        Enable boot disk (and grub), size of boot disk lv (example: \`512M\`)"
+  echo "        Enable boot disk (and grub), size of boot disk (example: \`512M\`)"
   echo "    -t, --fs-type <type>"
-  echo "        Type for root file system (default: \`ext4\`)"
+  echo "        File system type (default: \`ext4\`)"
+  echo "    --boot-fs-type <type>"
+  echo "        Boot disk file system type (defaults to the value of \`--fs-type\`)"
   echo "    -o, --fs-options <options>"
   echo "        Options passed to \`mkfs.<fs-type>\` (default: use system defaults)"
   echo "    -i, --package-install <package_list>"
@@ -34,9 +36,14 @@ print_usage() {
   echo "    -c, --cdebootstrap"
   echo "        Use cdebootstrap instead of debootstrap"
   echo "    -f, --file"
-  echo "        Bootstrap to a file based image"
+  echo "        Bootstrap to a file-based image (cannot be used together with \`--boot\`)"
   echo "    -h, --help"
   echo "        Print this help message"
+}
+
+print_error_file_boot() {
+  echo -e "error: using a boot disk is not supported when bootstrapping to a file-based image."
+  echo -e "\n    see \`${0} --help\`\n"
 }
 
 print_requirement_debootstrap() {
@@ -80,25 +87,16 @@ export DIST="${1}"
 shift
 export RELEASE="${1}"
 shift
-export LV_ROOT="${NAME}-root"
-export LV_BOOT="${NAME}-boot"
-export DEV_ROOT="/dev/${POOL}/${LV_ROOT}"
-export DEV_BOOT="/dev/${POOL}/${LV_BOOT}"
-export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
-export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
-export MAPPER_BOOT1="${MAPPER_BOOT}1"
-export MOUNT_TRARGET="/mnt/bootstrap/${POOL}-${LV_ROOT}"
 export SCRIPT_PATH="${DIR}"
 export PACKAGE_PATH="${SCRIPT_PATH}/packages"
 export CONFIG_PATH="${SCRIPT_PATH}/config"
 export DEBOOTSTRAP_EXCLUDE="--exclude=editor,debconf-2.0"
-export FILE_BASE="/var/lib/img"
-export FILE_PATH="${FILE_BASE}/${NAME}-root"
 
-LV_ROOT_SIZE="2G"
-LV_BOOT_SIZE=""
+IMG_ROOT_SIZE="2G"
+IMG_BOOT_SIZE=""
 IF="eth0"
 FS_ROOT="ext4"
+FS_BOOT="ext4"
 FS_OPTIONS=""
 YES="false"
 FILE="false"
@@ -107,6 +105,7 @@ MIRROR="http://debian.ethz.ch"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
+    FS_BOOT="ext3"
 fi
 
 if [ "${RELEASE}" == "xenial" ]; then
@@ -167,15 +166,20 @@ case $key in
         FILE="true"
         ;;
     -r|--root)
-        LV_ROOT_SIZE="${2}"
+        IMG_ROOT_SIZE="${2}"
         shift
         ;;
     -b|--boot)
-        LV_BOOT_SIZE="${2}"
+        IMG_BOOT_SIZE="${2}"
         shift
         ;;
     -t|--fs-type)
         FS_ROOT="${2}"
+        FS_BOOT="${2}"
+        shift
+        ;;
+    --boot-fs-type)
+        FS_BOOT="${2}"
         shift
         ;;
     -o|--fs-options)
@@ -206,6 +210,22 @@ esac
 shift # past argument or value
 done
 
+export IMG_ROOT="${NAME}-root"
+export IMG_BOOT="${NAME}-boot"
+export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
+export DEV_BOOT="/dev/${POOL}/${IMG_BOOT}"
+export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
+export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
+export MAPPER_BOOT1="${MAPPER_BOOT}1"
+export MOUNT_TRARGET="/mnt/bootstrap/${POOL}-${IMG_ROOT}"
+export FILE_BASE="/var/lib/img"
+export FILE_PATH="${FILE_BASE}/${NAME}-root"
+
+if [ ! -z "${IMG_BOOT_SIZE}" ] && [[ "${FILE}" == "true" ]]; then
+    print_error_file_boot
+    exit 1
+fi
+
 if [ "$(which debootstrap)" == "" ]; then
   print_requirement_debootstrap
   exit 1
@@ -225,9 +245,10 @@ if [[ "${YES}" == "true" ]]; then
   LVCREATE_OPTS="${LVCREATE_OPTS} --yes"
 fi
 
-export LV_ROOT_SIZE
-export LV_BOOT_SIZE
+export IMG_ROOT_SIZE
+export IMG_BOOT_SIZE
 export FS_ROOT
+export FS_BOOT
 export PACKAGE_REQUIRED
 export PACKAGE_IMPORTANT
 export PACKAGE_STANDARD
@@ -253,7 +274,7 @@ if [ -e ${DEV_ROOT} ]; then
   exit 1
 fi
 
-if [ ! -z "${LV_BOOT_SIZE}" ]; then
+if [ ! -z "${IMG_BOOT_SIZE}" ]; then
   if [ -e ${DEV_BOOT} ]; then
     echo "error: ${DEV_BOOT} already exists!"
     exit 1
@@ -272,10 +293,10 @@ fi
 
 echo "name: ${NAME}"
 echo "pool: ${POOL}"
-echo "root lv size: $LV_ROOT_SIZE"
-[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv size: ${LV_BOOT_SIZE}"
+echo "root lv size: $IMG_ROOT_SIZE"
+[[ ! -z "${IMG_BOOT_SIZE}" ]] && echo "boot lv size: ${IMG_BOOT_SIZE}"
 echo "root lv: ${DEV_ROOT}"
-[[ ! -z "${LV_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
+[[ ! -z "${IMG_BOOT_SIZE}" ]] && echo "boot lv: ${DEV_BOOT}"
 [[ "${FILE}" == "true" ]] && echo "root img: ${FILE_PATH}"
 echo
 
@@ -288,16 +309,16 @@ then
   if [[ ! "${FILE}" == "true" ]]; then
     echo "bootstrapping to lvm..."
 
-    lvcreate ${LVCREATE_OPTS} -L ${LV_ROOT_SIZE} -n ${LV_ROOT} ${POOL} || exit 1
+    lvcreate ${LVCREATE_OPTS} -L ${IMG_ROOT_SIZE} -n ${IMG_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
 
-    if [ ! -z "${LV_BOOT_SIZE}" ]; then
-      lvcreate ${LVCREATE_OPTS} -L ${LV_BOOT_SIZE} -n ${LV_BOOT} ${POOL} || exit 1
+    if [ ! -z "${IMG_BOOT_SIZE}" ]; then
+      lvcreate ${LVCREATE_OPTS} -L ${IMG_BOOT_SIZE} -n ${IMG_BOOT} ${POOL} || exit 1
       parted ${DEV_BOOT} mklabel msdos || exit 1
-      parted ${DEV_BOOT} mkpart primary ext2 1M 100% || exit 1
+      parted ${DEV_BOOT} mkpart primary ${FS_BOOT} 1M 100% || exit 1
       parted ${DEV_BOOT} set 1 boot on || exit 1
       kpartx -av ${DEV_BOOT} || exit 1
-      mkfs.ext2 ${MAPPER_BOOT1} || exit 1
+      mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
     fi
 
     mkdir -p ${MOUNT_TRARGET}
@@ -307,12 +328,12 @@ then
     else
       cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TRARGET}" "${MIRROR}/${DIST}/" || exit 1
     fi
-    if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+    if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
       mount ${MAPPER_BOOT1} "${MOUNT_TRARGET}/boot" || exit 1
     fi
   else
     echo "bootstrapping to file image..."
-    fallocate -l ${LV_ROOT_SIZE} ${FILE_PATH} || exit 1
+    fallocate -l ${IMG_ROOT_SIZE} ${FILE_PATH} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${FILE_PATH} || exit 1
     mkdir -p ${MOUNT_TRARGET}
     mount ${FILE_PATH} ${MOUNT_TRARGET} || exit 1
@@ -335,7 +356,7 @@ then
 
   . "${SCRIPT_PATH}/stage3"
 
-  if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+  if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
     umount "${MOUNT_TRARGET}/boot" || exit 1
   fi
   umount "${MOUNT_TRARGET}/sys" || exit 1
@@ -343,7 +364,7 @@ then
   #umount "${MOUNT_TRARGET}/dev/pts" || exit 1
   umount "${MOUNT_TRARGET}/dev" || exit 1
   umount "${MOUNT_TRARGET}" || exit 1
-  if [[ ! -z "${LV_BOOT_SIZE}" ]]; then
+  if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
     kpartx -d ${DEV_BOOT} || exit 1
   fi
   rmdir "${MOUNT_TRARGET}"
