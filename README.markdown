@@ -6,17 +6,17 @@ Bootstrap a bootable system to a file system on a logical volume or file-based i
 Description
 -----------
 
-I created this script to bootstrap a bootable system into an lvm or file-based disk image to be used as KVM virtual machine disk image.
+This script bootstraps a root file system directly to a partitionless disk image bootable by QEMU-KVM virtual machines.
 
-If you are familiar with Xen, you probably came across this kind of setup. With Xen you can boot directly from a file-system without a partition table using the `pygrub` bootloader. This is very useful when it comes to resizing the logical volume, as you do not have to mess with partition tables and you can do online resizing of virtual disks.
+If you are familiar with Xen, you probably came across this kind of setup. With Xen you can boot directly from a file-system without a partition table using the `pygrub` bootloader. This is very useful when you need to resize the disk images, as you do not have to alter partition tables and you can do online resizing of virtual disks without shutting down the guest system.
 
-Of course I wanted this for kvm too. Unfortunately, there is no such thing as `pygrub` for KVM. But you still have some options. With KVM you can directly boot using a Kernel from the host file-system. With `libvirt` you can even use a `qemu` hook script to extract the guest Kernel, store it on the hosts file-system and boot it. But after a Kernel upgrade in the guest, you need to stop the VM and start it up again on the host system. If you just reboot from within the guest, `libvirt` will not pickup the new Kernel. Of course I wanted that reboot.
+I wanted this for kvm too. Unfortunately, there is no such thing as `pygrub` for KVM. But you still have some options. With KVM you can directly boot using a Kernel from the host file-system. With `libvirt` you can even use a `qemu` hook script to extract the guest Kernel, store it on the hosts file-system and boot it. But after a Kernel upgrade in the guest, you need to stop the VM and start it up again on the host system. If you just reboot from within the guest, `libvirt` will not pickup the new Kernel.
 
-There are two options to achieve this:
+There are two options to also allow reboot from within the guest after a Kernel upgrade:
 
-1. Using the `grub` bootloader, we can work around this, by creating a small boot disk. The disk needs a partition table for Grub to work properly. Grub is installed into the MBR of this disk. The first partition will contain the Kernel, initrd and Grub. The partition is mounted to `/boot`. The rest of the root file-system will be bootstrapped into a separate logical volume, which only contains a file-system. If you carefully size the boot lv, you probably never have to resize that disk. However, we are still not fully satisfied, because we still need two lvs (disks).
+1. Using the `grub` bootloader, we can work around this, by creating a small boot disk. The disk needs a partition table for Grub to work properly. Grub is installed into the MBR of this disk. The first partition will contain the Kernel, initrd and Grub. The partition is mounted to `/boot`. The rest of the root file-system will be bootstrapped into a separate logical volume or image file, which only contains a file-system. If you carefully size the boot disk, you probably never have to resize it again. However, this is still not fully satisfying because two disks are needed at least.
 
-2. Using `extlinux` (`syslinux`) we can solve that problem. It does not need to be installed into an MBR and we can directly install it into our file-system. We end up with a single logical volume, containing only a file-system that is bootable by QEMU-KVM. This is the default method used in this script.
+2. Using `extlinux` (`syslinux`) we can solve that problem. It does not need to be installed into an MBR and can be directly installed on a disk image file or logical volume without a partition table. We end up with a single disk image, containing a file-system only, which is bootable by QEMU-KVM. This is the default method used in this script.
 
 Requirements
 ------------
@@ -35,7 +35,7 @@ Usage
 -----
 
 ```bash
-Usage: bootstrap-lv name pool dist release [options]
+Usage: bootstrap name pool dist release [options]
 
     Bootstraps a bootable filesystem to logical volume or file-based image.
     Default bootloader: extlinux
@@ -70,6 +70,8 @@ Options:
         Mirror to use (default: `http://debian.ethz.ch`)
     -a, --mount-target <path>
         Target mount point (default: `/mnt/bootstrap`)
+    -z, --time-zone <zoneinfo>
+        Timezone for local time (default: `Europe/Zurich`)
     -y, --yes
         Run non-interactively and answer questions with yes
     -c, --cdebootstrap
