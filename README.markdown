@@ -1,12 +1,12 @@
-bootstrap-lv
-============
+bootstrap
+=========
 
 Bootstrap a bootable system to a file system on a logical volume or file-based image.
 
 Description
 -----------
 
-This script bootstraps a root file system directly to a partitionless disk image bootable by QEMU-KVM virtual machines.
+This script creates a root file system directly on a partitionless disk and installs a Debian or Ubuntu base system bootable by QEMU-KVM virtual machines.
 
 If you are familiar with Xen, you probably came across this kind of setup. With Xen you can boot directly from a file-system without a partition table using the `pygrub` bootloader. This is very useful when you need to resize the disk images, as you do not have to alter partition tables and you can do online resizing of virtual disks without shutting down the guest system.
 
@@ -14,9 +14,9 @@ I wanted this for kvm too. Unfortunately, there is no such thing as `pygrub` for
 
 There are two options to also allow reboot from within the guest after a Kernel upgrade:
 
-1. Using the `grub` bootloader, we can work around this, by creating a small boot disk. The disk needs a partition table for Grub to work properly. Grub is installed into the MBR of this disk. The first partition will contain the Kernel, initrd and Grub. The partition is mounted to `/boot`. The rest of the root file-system will be bootstrapped into a separate logical volume or image file, which only contains a file-system. If you carefully size the boot disk, you probably never have to resize it again. However, this is still not fully satisfying because two disks are needed at least.
+1. Using the `grub` bootloader, we can work around this, by creating a small boot disk. The disk needs a partition table for Grub to work properly. Grub is installed into the MBR of this disk. The first partition will contain the Kernel, initrd and Grub. The partition is mounted to `/boot`. The rest of the root file-system will be bootstrapped into a separate logical volume or image file, which only contains a file-system. If you carefully size the boot disk, you should not need to resize it again. However, this is still not fully satisfying because at least two disks are needed.
 
-2. Using `extlinux` (`syslinux`) we can solve that problem. It does not need to be installed into an MBR and can be directly installed on a disk image file or logical volume without a partition table. We end up with a single disk image, containing a file-system only, which is bootable by QEMU-KVM. This is the default method used in this script.
+2. Using `extlinux` (`syslinux`) we can solve that problem. It does not need to be installed into an MBR and can be installed on a disk image file or logical volume without a partition table. We end up with a single disk containing a file-system only, which is bootable by QEMU-KVM. This is the default method used in this script.
 
 Requirements
 ------------
