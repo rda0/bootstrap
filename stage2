@@ -62,7 +62,7 @@ LABEL linux
 EOF
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
-/dev/sda  /     ${FS_ROOT} errors=remount-ro 0 1
+/dev/sda  /     ${FS_ROOT} ${FS_MOUNT_OPTIONS},errors=remount-ro 0 1
 EOF
 else
   cat > /etc/default/grub << 'EOF'
@@ -82,8 +82,8 @@ GRUB_DISABLE_SUBMENU="y"
 EOF
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
-/dev/sdb  /     ${FS_ROOT} errors=remount-ro 0 1
-/dev/sda1 /boot ${FS_BOOT} defaults          0 2
+/dev/sdb  /     ${FS_ROOT} ${FS_MOUNT_OPTIONS},errors=remount-ro 0 1
+/dev/sda1 /boot ${FS_BOOT} ${FS_MOUNT_OPTIONS} 0 2
 EOF
   grub-install ${MAPPER_BOOT}
   update-grub
