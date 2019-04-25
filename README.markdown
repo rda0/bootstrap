@@ -58,12 +58,20 @@ Options:
         File system type (default: `ext4`)
     --boot-fs-type <type>
         Boot disk file system type (defaults to the value of `--fs-type`)
-    -o, --fs-options <options>
+    -o, --fs-mount-options <options>
+        Mount options set in `/etc/fstab` (default: `noatime,nodiratime`)
+    --fs-options <options>
         Options passed to `mkfs.<fs-type>` (default: use system defaults)
+    --include <packages>
+        Comma separated list of packages to include in debootstrap
+        (default: `locales,tzdata,python-minimal,python-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged`)
+    --exclude <packages>
+        Comma separated list of packages to exclude in debootstrap
+        (default: `editor,debconf-2.0`)
     -i, --package-install <package_list>
-        List of extra packages to install (default: bootstrap-packages/<dist>/<release>/install)
+        List of extra packages to install (default: packages/<dist>/<release>/install)
     -u, --package-purge <package_list>
-        List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)
+        List of packages to purge (default: packages/<dist>/<release>/purge)
     -n, --network-interface <interface_name>
         Network interface name (default: `eth0`)
     -m, --mirror <mirror_url>
