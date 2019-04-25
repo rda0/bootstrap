@@ -41,26 +41,15 @@ dpkg-reconfigure -f noninteractive tzdata
 
 echo 'locales locales/default_environment_locale select en_US.UTF-8' | debconf-set-selections
 echo 'locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8' | debconf-set-selections
-apt-get install locales -y
-apt-get clean
+#apt-get install locales -y
+#apt-get clean
 sed -i -e "s/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen
 echo "LANG=en_US.UTF-8" > /etc/default/locale
 dpkg-reconfigure --frontend=noninteractive locales
 update-locale LANG=en_US.UTF-8
 
-if [ "${DIST}" == "debian" ]; then
-    apt-get install linux-image-amd64 -y
-else
-    apt-get install linux-image-generic -y
-fi
-
-apt-get clean
-
 if [ -z "${IMG_BOOT_SIZE}" ]; then
-  apt-get install extlinux -y
-
   extlinux --install /
-
   cat > /syslinux.cfg << EOF
 PROMPT 0
 TIMEOUT 0
@@ -71,14 +60,11 @@ LABEL linux
     APPEND root=/dev/sda ro net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop
     INITRD initrd.img
 EOF
-
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
 /dev/sda  /     ${FS_ROOT} errors=remount-ro 0 1
 EOF
 else
-  apt-get install grub2 -y
-
   cat > /etc/default/grub << 'EOF'
 GRUB_DEFAULT=0
 GRUB_TIMEOUT=0
@@ -94,13 +80,11 @@ GRUB_DISABLE_RECOVERY="true"
 GRUB_DISABLE_OS_PROBER="true"
 GRUB_DISABLE_SUBMENU="y"
 EOF
-
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
 /dev/sdb  /     ${FS_ROOT} errors=remount-ro 0 1
 /dev/sda1 /boot ${FS_BOOT} defaults          0 2
 EOF
-
   grub-install ${MAPPER_BOOT}
   update-grub
   #sed -i "s/${MAPPER_ROOT//\//\\\/}/\/dev\/sdb/g" /boot/grub/grub.cfg

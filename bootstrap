@@ -23,10 +23,16 @@ print_usage() {
   echo "        Boot disk file system type (defaults to the value of \`--fs-type\`)"
   echo "    -o, --fs-options <options>"
   echo "        Options passed to \`mkfs.<fs-type>\` (default: use system defaults)"
+  echo "    --include <packages>"
+  echo "        Comma separated list of packages to include in debootstrap"
+  echo "        (default: \`locales,tzdata,python-minimal,python-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged\`)"
+  echo "    --exclude <packages>"
+  echo "        Comma separated list of packages to exclude in debootstrap"
+  echo "        (default: \`editor,debconf-2.0\`)"
   echo "    -i, --package-install <package_list>"
-  echo "        List of extra packages to install (default: bootstrap-packages/<dist>/<release>/install)"
+  echo "        List of extra packages to install (default: packages/<dist>/<release>/install)"
   echo "    -u, --package-purge <package_list>"
-  echo "        List of packages to purge (default: bootstrap-packages/<dist>/<release>/purge)"
+  echo "        List of packages to purge (default: packages/<dist>/<release>/purge)"
   echo "    -n, --network-interface <interface_name>"
   echo "        Network interface name (default: \`eth0\`)"
   echo "    -m, --mirror <mirror_url>"
@@ -94,7 +100,6 @@ shift
 export SCRIPT_PATH="${DIR}"
 export PACKAGE_PATH="${SCRIPT_PATH}/packages"
 export CONFIG_PATH="${SCRIPT_PATH}/config"
-export DEBOOTSTRAP_EXCLUDE="--exclude=editor,debconf-2.0"
 
 IMG_ROOT_SIZE="2G"
 IMG_BOOT_SIZE=""
@@ -108,6 +113,8 @@ LVCREATE_OPTS="--zero y --wipesignatures y"
 MIRROR="http://debian.ethz.ch"
 MOUNT_TARGET="/mnt/bootstrap"
 TIME_ZONE="Europe/Zurich"
+INCLUDE="locales,tzdata,python-minimal,python-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged"
+EXCLUDE="editor,debconf-2.0"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -188,6 +195,14 @@ case $key in
         FS_BOOT="${2}"
         shift
         ;;
+    --include)
+        INCLUDE="${2}"
+        shift
+        ;;
+    --exclude)
+        EXCLUDE="${2}"
+        shift
+        ;;
     -o|--fs-options)
         FS_OPTIONS="${2}"
         shift
@@ -224,8 +239,22 @@ esac
 shift # past argument or value
 done
 
+if [ "${DIST}" == "debian" ]; then
+    KERNEL="linux-image-amd64"
+else
+    KERNEL="linux-image-generic"
+fi
+
+if [ -z "${IMG_BOOT_SIZE}" ]; then
+    BOOTLOADER="extlinux"
+else
+    BOOTLOADER="grub2"
+fi
+
 export IMG_ROOT="${NAME}-root"
 export IMG_BOOT="${NAME}-boot"
+export DEBOOTSTRAP_INCLUDE="--include=${KERNEL},${BOOTLOADER},${INCLUDE}"
+export DEBOOTSTRAP_EXCLUDE="--exclude=${EXCLUDE}"
 
 if [[ ! "${FILE}" == "true" ]]; then
   export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
@@ -273,6 +302,8 @@ export MIRROR
 export MOUNT_TARGET
 export FILE
 export TIME_ZONE
+export KERNEL
+export BOOTLOADER
 
 # try to load root password hash
 if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
@@ -333,9 +364,9 @@ cleanup_umount() {
 
 bootstrap_stage1() {
   if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
-    debootstrap "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
+    debootstrap "${DEBOOTSTRAP_INCLUDE}" "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
   else
-    cdebootstrap "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
+    cdebootstrap "${DEBOOTSTRAP_INCLUDE}" "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
   fi
 }
 
@@ -346,10 +377,13 @@ fi
 if [[ "${YES}" == "true" ]] || [[ $REPLY =~ ^[Yy]$ ]]
 then
   if [[ ! "${FILE}" == "true" ]]; then
-    echo "bootstrapping to logical volume..."
+    echo -e "\nbootstrapping to logical volume..."
 
     lvcreate ${LVCREATE_OPTS} -L ${IMG_ROOT_SIZE} -n ${IMG_ROOT} ${POOL} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
+    mkdir -p ${MOUNT_TARGET} || exit 1
+    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
+    export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
 
     if [ ! -z "${IMG_BOOT_SIZE}" ]; then
       lvcreate ${LVCREATE_OPTS} -L ${IMG_BOOT_SIZE} -n ${IMG_BOOT} ${POOL} || exit 1
@@ -360,23 +394,20 @@ then
       export MAPPER_BOOT="/dev/mapper/${POOL}-${NAME//-/--}--boot"
       export MAPPER_BOOT1="${MAPPER_BOOT}1"
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
-    fi
-
-    mkdir -p ${MOUNT_TARGET} || exit 1
-    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
-    export MAPPER_ROOT="/dev/mapper/${POOL}-${NAME//-/--}--root"
-
-    bootstrap_stage1
-
-    if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
+      mkdir -p "${MOUNT_TARGET}/boot"
       mount ${MAPPER_BOOT1} "${MOUNT_TARGET}/boot" || exit 1
     fi
+
+    bootstrap_stage1
   else
-    echo "bootstrapping to file image..."
+    echo -e "\nbootstrapping to file image..."
 
     mkdir -p ${POOL} || exit 1
     fallocate -l ${IMG_ROOT_SIZE} ${DEV_ROOT} || exit 1
     mkfs.${FS_ROOT} ${FS_OPTIONS} ${DEV_ROOT} || exit 1
+    mkdir -p ${MOUNT_TARGET} || exit 1
+    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
+    export MAPPER_ROOT="$(losetup --list | grep ${DEV_ROOT} | cut -d ' ' -f1)"
 
     if [ ! -z "${IMG_BOOT_SIZE}" ]; then
       fallocate -l ${IMG_BOOT_SIZE} ${DEV_BOOT} || exit 1
@@ -387,17 +418,11 @@ then
       export MAPPER_BOOT="$(losetup --list | grep ${DEV_BOOT} | cut -d ' ' -f1)"
       export MAPPER_BOOT1="${MAPPER_BOOT/\/dev\//\/dev\/mapper\/}p1"
       mkfs.${FS_BOOT} ${MAPPER_BOOT1} || exit 1
-    fi
-
-    mkdir -p ${MOUNT_TARGET} || exit 1
-    mount ${DEV_ROOT} ${MOUNT_TARGET} || exit 1
-    export MAPPER_ROOT="$(losetup --list | grep ${DEV_ROOT} | cut -d ' ' -f1)"
-
-    bootstrap_stage1
-
-    if [[ ! -z "${IMG_BOOT_SIZE}" ]]; then
+      mkdir -p "${MOUNT_TARGET}/boot"
       mount ${MAPPER_BOOT1} "${MOUNT_TARGET}/boot" || exit 1
     fi
+
+    bootstrap_stage1
   fi
 
   mount --bind /dev "${MOUNT_TARGET}/dev"
