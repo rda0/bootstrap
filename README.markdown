@@ -173,6 +173,7 @@ The following extra packages should be installed by default (mainly to support i
 - `python-minimal`: Required for Ansible
 - `python-apt`: Required for Ansible
 - `acpi-support`: Required for reboot from host-system
+- `dbus`: Required for reboot from host-system
 - `ssh`: Required for ssh login (Ansible)
 - `bash-completion`: Optional
 - `vim`: Optional

@@ -1,6 +1,7 @@
 python-minimal
 python-apt
 acpi-support
+dbus
 ssh
 bash-completion
 vim
