@@ -31,6 +31,14 @@ Optional:
 - `fallocate`
 - `cdebootstrap`
 
+Installation
+------------
+
+```bash
+git clone https://github.com/rda0/bootstrap.git /opt/bootstrap
+ln -s /opt/bootstrap/bootstrap /usr/local/bin/bootstrap
+```
+
 Usage
 -----
 
