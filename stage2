@@ -103,7 +103,7 @@ DHCP=yes
 [DHCP]
 UseDomains=true
 EOF
-    >/etc/network/interfaces
+    if [ -e /etc/network/interfaces ]; then >/etc/network/interfaces; fi
     systemctl enable systemd-resolved.service
     systemctl enable systemd-networkd.service
     systemctl enable systemd-networkd-wait-online.service
