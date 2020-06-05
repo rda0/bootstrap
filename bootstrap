@@ -27,10 +27,13 @@ print_usage() {
   echo "        Options passed to \`mkfs.<fs-type>\` (default: use system defaults)"
   echo "    --include <packages>"
   echo "        Comma separated list of packages to include in debootstrap"
-  echo "        (default: \`locales,tzdata,python-minimal,python-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged\`)"
+  echo "        (default: \`locales,tzdata,python3-minimal,python3-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged\`)"
   echo "    --exclude <packages>"
   echo "        Comma separated list of packages to exclude in debootstrap"
   echo "        (default: \`editor,debconf-2.0\`)"
+  echo "    --components <components>"
+  echo "        Comma separated list of apt repository components"
+  echo "        (defaults: debian: \`main\`, ubuntu: \`main,universe\`)"
   echo "    -i, --package-install <package_list>"
   echo "        List of extra packages to install (default: packages/<dist>/<release>/install)"
   echo "    -u, --package-purge <package_list>"
@@ -116,8 +119,9 @@ LVCREATE_OPTS="--zero y --wipesignatures y"
 MIRROR="http://debian.ethz.ch"
 MOUNT_TARGET="/mnt/bootstrap"
 TIME_ZONE="Europe/Zurich"
-INCLUDE="locales,tzdata,python-minimal,python-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged"
+INCLUDE="locales,tzdata,python3-minimal,python3-apt,acpi-support,dbus,ssh,bash-completion,vim,haveged"
 EXCLUDE="editor,debconf-2.0"
+COMPONENTS="main"
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -126,6 +130,10 @@ fi
 
 if [ "${RELEASE}" == "xenial" ]; then
     FS_OPTIONS="-O has_journal,ext_attr,resize_inode,dir_index,filetype,extent,flex_bg,sparse_super,large_file,huge_file,uninit_bg,dir_nlink,extra_isize,^64bit,^metadata_csum"
+fi
+
+if [ "${DIST}" == "ubuntu" ]; then
+    COMPONENTS="main,universe"
 fi
 
 if [ -s "${PACKAGE_PATH}/${DIST}/${RELEASE}/required" ]
@@ -206,6 +214,10 @@ case $key in
         EXCLUDE="${2}"
         shift
         ;;
+    --components)
+        COMPONENTS="${2}"
+        shift
+        ;;
     -o|--fs-mount-options)
         FS_MOUNT_OPTIONS="${2}"
         shift
@@ -262,6 +274,7 @@ export IMG_ROOT="${NAME}-root"
 export IMG_BOOT="${NAME}-boot"
 export DEBOOTSTRAP_INCLUDE="--include=${KERNEL},${BOOTLOADER},${INCLUDE}"
 export DEBOOTSTRAP_EXCLUDE="--exclude=${EXCLUDE}"
+export DEBOOTSTRAP_COMPONENTS="--components=${COMPONENTS}"
 
 if [[ ! "${FILE}" == "true" ]]; then
   export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
@@ -372,7 +385,7 @@ cleanup_umount() {
 
 bootstrap_stage1() {
   if [[ ! "${CDEBOOTSTRAP}" == "true" ]]; then
-    debootstrap "${DEBOOTSTRAP_INCLUDE}" "${DEBOOTSTRAP_EXCLUDE}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
+    debootstrap "${DEBOOTSTRAP_INCLUDE}" "${DEBOOTSTRAP_EXCLUDE}" "${DEBOOTSTRAP_COMPONENTS}" "${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
   else
     cdebootstrap "${DEBOOTSTRAP_INCLUDE}" "${DEBOOTSTRAP_EXCLUDE}" "${DIST}/${RELEASE}" "${MOUNT_TARGET}" "${MIRROR}/${DIST}/" || exit 1
   fi
