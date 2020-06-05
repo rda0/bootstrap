@@ -48,6 +48,11 @@ echo "LANG=en_US.UTF-8" > /etc/default/locale
 dpkg-reconfigure --frontend=noninteractive locales
 update-locale LANG=en_US.UTF-8
 
+KERNEL_BOOT_PATH=""
+if [ "${RELEASE}" == "focal" ]; then
+    KERNEL_BOOT_PATH="boot/"
+fi
+
 if [ -z "${IMG_BOOT_SIZE}" ]; then
   extlinux --install /
   cat > /syslinux.cfg << EOF
@@ -56,9 +61,9 @@ TIMEOUT 0
 DEFAULT linux
 
 LABEL linux
-    LINUX vmlinuz
+    LINUX ${KERNEL_BOOT_PATH}vmlinuz
     APPEND root=/dev/sda ro net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop
-    INITRD initrd.img
+    INITRD ${KERNEL_BOOT_PATH}initrd.img
 EOF
   cat > /etc/fstab << EOF
 # <file system> <mount point> <type> <options> <dump> <pass>
