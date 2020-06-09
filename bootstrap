@@ -265,7 +265,7 @@ done
 if [ "${DIST}" == "debian" ]; then
     KERNEL="linux-image-amd64"
 elif [ "${RELEASE}" == "focal" ]; then
-    KERNEL="initramfs-tools,linux-image-kvm"
+    KERNEL="initramfs-tools,linux-image-generic"
 else
     KERNEL="linux-image-generic"
 fi
