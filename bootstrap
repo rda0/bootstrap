@@ -52,12 +52,19 @@ print_usage() {
   echo "        Use cdebootstrap instead of debootstrap"
   echo "    -f, --file"
   echo "        Bootstrap to file-based image"
+  echo "    --file-extension"
+  echo "        Optional file extension (example: `.raw`)"
   echo "    -h, --help"
   echo "        Print this help message"
 }
 
 print_error_pool_not_vg() {
   echo -e "error: invalid value for pool. volume group name expected (no slash)"
+  echo -e "\n    see \`${0} --help\`\n"
+}
+
+print_error_file_extension() {
+  echo -e "error: file-extension not allowed when not in file mode"
   echo -e "\n    see \`${0} --help\`\n"
 }
 
@@ -122,6 +129,7 @@ TIME_ZONE="Europe/Zurich"
 INCLUDE="locales,tzdata,python3-minimal,python3-apt,python-apt,python-minimal,acpi-support,dbus,ssh,bash-completion,vim,haveged"
 EXCLUDE="editor,debconf-2.0,netplan.io"
 COMPONENTS="main"
+EXTENSION=""
 
 if [ "${RELEASE}" == "jessie" ]; then
     FS_ROOT="ext3"
@@ -258,6 +266,10 @@ case $key in
         TIME_ZONE="${2}"
         shift
         ;;
+    --file-extension)
+        EXTENSION="${2}"
+        shift
+        ;;
 esac
 shift # past argument or value
 done
@@ -286,12 +298,17 @@ if [[ ! "${FILE}" == "true" ]]; then
   export DEV_ROOT="/dev/${POOL}/${IMG_ROOT}"
   export DEV_BOOT="/dev/${POOL}/${IMG_BOOT}"
 else
-  export DEV_ROOT="${POOL}/${IMG_ROOT}"
-  export DEV_BOOT="${POOL}/${IMG_BOOT}"
+  export DEV_ROOT="${POOL}/${IMG_ROOT}${EXTENSION}"
+  export DEV_BOOT="${POOL}/${IMG_BOOT}${EXTENSION}"
 fi
 
 if [[ ! "${FILE}" == "true" ]] && [[ ${POOL} == *"/"* ]]; then
   print_error_pool_not_vg
+  exit 1
+fi
+
+if [[ ! "${FILE}" == "true" ]] && [[ ! ${EXTENSION} == "" ]]; then
+  print_error_file_extension
   exit 1
 fi
 
@@ -331,6 +348,7 @@ export FILE
 export TIME_ZONE
 export KERNEL
 export BOOTLOADER
+export EXTENSION
 
 # try to load root password hash
 if [ -r "${SCRIPT_PATH}/secrets/root_password_hash" ]; then
