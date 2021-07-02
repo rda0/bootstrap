@@ -100,7 +100,7 @@ apt-get clean
 if [ "${RELEASE}" != "jessie" ]; then
     cat > /etc/systemd/network/host.network << EOF
 [Match]
-Name=${IF}
+Name=e*
 
 [Network]
 DHCP=yes
