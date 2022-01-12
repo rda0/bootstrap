@@ -4,12 +4,21 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBIAN_PRIORITY=critical
 
 if [ "${DIST}" == "debian" ]; then
+    if [ "${RELEASE}" == "stretch" ] || [ "${RELEASE}" == "buster" ]; then
 cat > /etc/apt/sources.list << EOF
 deb ${MIRROR}/debian ${RELEASE} main contrib non-free
 #deb-src ${MIRROR}/debian ${RELEASE} main contrib non-free
 deb http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 #deb-src http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 EOF
+    else
+cat > /etc/apt/sources.list << EOF
+deb ${MIRROR}/debian ${RELEASE} main contrib non-free
+#deb-src ${MIRROR}/debian ${RELEASE} main contrib non-free
+deb http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free
+#deb-src http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free
+EOF
+    fi
 else
 cat > /etc/apt/sources.list << EOF
 deb ${MIRROR}/ubuntu ${RELEASE} main restricted universe multiverse
