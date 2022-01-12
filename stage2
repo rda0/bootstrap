@@ -58,7 +58,7 @@ dpkg-reconfigure --frontend=noninteractive locales
 update-locale LANG=en_US.UTF-8
 
 KERNEL_BOOT_PATH=""
-if [ "${RELEASE}" == "focal" ]; then
+if [ "${DIST}" == "ubuntu" ] && [ "${RELEASE}" != "bionic" ]; then
     KERNEL_BOOT_PATH="boot/"
 fi
 
