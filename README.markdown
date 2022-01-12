@@ -186,8 +186,9 @@ The default is to bootstrap a minimal base-system (`debootstrap`) with no additi
 
 The following extra packages should be installed by default (mainly to support immediate deployment of spawned VMs using Ansible). This is the default for the current releases in `packages/`:
 
-- `python-minimal`: Required for Ansible
-- `python-apt`: Required for Ansible
+- `python3-minimal`: Required for Ansible
+- `python3-apt`: Required for Ansible
+- `python-is-python3`: Required for compatibility with older distributions
 - `acpi-support`: Required for reboot from host-system
 - `dbus`: Required for reboot from host-system
 - `ssh`: Required for ssh login (Ansible)
