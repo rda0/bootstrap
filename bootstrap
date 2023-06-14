@@ -478,6 +478,8 @@ then
   mount -t proc proc "${MOUNT_TARGET}/proc"
   mount -t sysfs sysfs "${MOUNT_TARGET}/sys"
 
+  rm -f ${MOUNT_TARGET}/etc/resolv.conf
+  \cp -p /etc/resolv.conf ${MOUNT_TARGET}/etc/resolv.conf
   \cp -p "${SCRIPT_PATH}/stage2" ${MOUNT_TARGET}
   chmod +x "${MOUNT_TARGET}/stage2"
   LANG=C LC_ALL=C LANGUAGE=en chroot ${MOUNT_TARGET} /bin/bash /stage2 || exit 1
