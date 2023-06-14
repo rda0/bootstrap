@@ -11,12 +11,19 @@ deb ${MIRROR}/debian ${RELEASE} main contrib non-free
 deb http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 #deb-src http://security.debian.org/debian-security ${RELEASE}/updates main contrib non-free
 EOF
-    else
+    elif [ "${RELEASE}" == "bullseye" ]; then
 cat > /etc/apt/sources.list << EOF
 deb ${MIRROR}/debian ${RELEASE} main contrib non-free
 #deb-src ${MIRROR}/debian ${RELEASE} main contrib non-free
 deb http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free
 #deb-src http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free
+EOF
+    else
+cat > /etc/apt/sources.list << EOF
+deb ${MIRROR}/debian ${RELEASE} main contrib non-free non-free-firmware
+#deb-src ${MIRROR}/debian ${RELEASE} main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free non-free-firmware
+#deb-src http://security.debian.org/debian-security ${RELEASE}-security main contrib non-free non-free-firmware
 EOF
     fi
 else
