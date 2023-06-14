@@ -71,7 +71,7 @@ DEFAULT linux
 
 LABEL linux
     LINUX ${KERNEL_BOOT_PATH}vmlinuz
-    APPEND root=/dev/sda ro net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop
+    APPEND root=/dev/sda ro net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8
     INITRD ${KERNEL_BOOT_PATH}initrd.img
 EOF
   cat > /etc/fstab << EOF
@@ -84,7 +84,7 @@ GRUB_DEFAULT=0
 GRUB_TIMEOUT=0
 GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
 GRUB_CMDLINE_LINUX_DEFAULT=""
-GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8 elevator=noop"
+GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0 nousb console=tty0 console=ttyS0,115200n8"
 GRUB_TERMINAL="serial"
 GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"
 GRUB_DEVICE="/dev/sdb"
