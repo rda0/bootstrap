@@ -126,7 +126,7 @@ LVCREATE_OPTS="--zero y --wipesignatures y"
 MIRROR="http://debian.ethz.ch"
 MOUNT_TARGET="/mnt/bootstrap"
 TIME_ZONE="Europe/Zurich"
-INCLUDE="locales,tzdata,python3-minimal,python3-apt,python-is-python3,acpi-support,dbus,ssh,bash-completion,vim,haveged"
+INCLUDE="locales,tzdata,python3-minimal,python3-apt,python-is-python3,acpi-support,dbus,ssh,bash-completion,vim,haveged,systemd-resolved"
 EXCLUDE="editor,debconf-2.0,netplan.io"
 COMPONENTS="main"
 EXTENSION=""
@@ -142,6 +142,10 @@ fi
 
 if [ "${RELEASE}" == "bionic" ] || [ "${RELEASE}" == "stretch" ] || [ "${RELEASE}" == "buster" ]; then
     INCLUDE="locales,tzdata,python3-minimal,python3-apt,python-apt,python-minimal,acpi-support,dbus,ssh,bash-completion,vim,haveged"
+fi
+
+if [ "${RELEASE}" == "bullseye" ] || [ "${RELEASE}" == "focal" ] || [ "${RELEASE}" == "jammy" ]; then
+    INCLUDE="locales,tzdata,python3-minimal,python3-apt,python-is-python3,acpi-support,dbus,ssh,bash-completion,vim,haveged"
 fi
 
 if [ "${DIST}" == "ubuntu" ]; then
