@@ -75,7 +75,7 @@ print_requirement_debootstrap() {
 
 print_requirement_cdebootstrap() {
   echo -e "error: cdebootstrap is not installed. To install run:"
-  echo -e "\n    apt install cdebootstrap ubuntu-archive-keyring\n"
+  echo -e "\n    apt install cdebootstrap\n"
 }
 
 print_requirement_part() {

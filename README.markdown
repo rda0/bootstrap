@@ -25,7 +25,6 @@ Requirements
 
 Optional:
 
-- `ubuntu-archive-keyring`
 - `parted`
 - `kpartx`
 - `fallocate`
